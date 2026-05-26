@@ -1044,22 +1044,34 @@
       );
       const range = maxAbs * 1.18;
       const scale = Math.min(plotW / (range * 2), plotH / (range * 2));
-      const step = niceStep(range);
-      const axisMax = Math.ceil(range / step) * step;
+      // 目盛り線: 10m単位、太線: 100m単位、数字ラベル: 200m単位
+      const labelStep = 200;
+      const majorStep = 100;
+      const minorStep = 10;
+      const axisMax = Math.ceil(range / labelStep) * labelStep;
 
       const sx = (x) => originX + x * scale;
       const sy = (y) => originY - y * scale;
 
       const grid = [];
-      for (let value = -axisMax; value <= axisMax + step / 2; value += step) {
+      for (let i = -axisMax; i <= axisMax + minorStep / 2; i += minorStep) {
+        const value = Math.round(i); // 浮動小数点誤差を排除
         const x = sx(value);
         const y = sy(value);
-        const major = Math.abs(value) < 1e-9;
-        grid.push(`<line x1="${x.toFixed(2)}" y1="${margin}" x2="${x.toFixed(2)}" y2="${height - margin}" stroke="${major ? "rgba(255,255,255,0.32)" : "rgba(255,255,255,0.07)"}" stroke-width="${major ? 1.5 : 0.8}" />`);
-        grid.push(`<line x1="${margin}" y1="${y.toFixed(2)}" x2="${width - margin}" y2="${y.toFixed(2)}" stroke="${major ? "rgba(255,255,255,0.32)" : "rgba(255,255,255,0.07)"}" stroke-width="${major ? 1.5 : 0.8}" />`);
-        if (!major) {
-          grid.push(`<text x="${x.toFixed(2)}" y="${originY + 12}" fill="rgba(159,193,217,0.55)" font-size="6.5" text-anchor="middle">${formatNumber(value, 0)}</text>`);
-          grid.push(`<text x="${originX - 4}" y="${y.toFixed(2)}" fill="rgba(159,193,217,0.55)" font-size="6.5" text-anchor="end" dominant-baseline="middle">${formatNumber(value, 0)}</text>`);
+        const isOrigin = value === 0;
+        const isMajor = value % majorStep === 0;
+        const isLabel = value % labelStep === 0;
+        const strokeColor = isOrigin
+          ? "rgba(255,255,255,0.32)"
+          : isMajor
+          ? "rgba(255,255,255,0.16)"
+          : "rgba(255,255,255,0.05)";
+        const strokeW = isOrigin ? 1.5 : isMajor ? 0.7 : 0.3;
+        grid.push(`<line x1="${x.toFixed(2)}" y1="${margin}" x2="${x.toFixed(2)}" y2="${height - margin}" stroke="${strokeColor}" stroke-width="${strokeW}" />`);
+        grid.push(`<line x1="${margin}" y1="${y.toFixed(2)}" x2="${width - margin}" y2="${y.toFixed(2)}" stroke="${strokeColor}" stroke-width="${strokeW}" />`);
+        if (isLabel && !isOrigin) {
+          grid.push(`<text x="${x.toFixed(2)}" y="${originY + 12}" fill="rgba(159,193,217,0.55)" font-size="6.5" text-anchor="middle">${value}</text>`);
+          grid.push(`<text x="${originX - 4}" y="${y.toFixed(2)}" fill="rgba(159,193,217,0.55)" font-size="6.5" text-anchor="end" dominant-baseline="middle">${value}</text>`);
         }
       }
 
@@ -1092,7 +1104,7 @@
       `;
 
       applyMapViewBox();
-      output.mapMeta.textContent = `表示範囲：±${formatNumber(axisMax, 0)} m　ポイント：${history.length}　グリッド：${formatNumber(step, 0)} m　ホイール/ドラッグで操作`;
+      output.mapMeta.textContent = `表示範囲：±${formatNumber(axisMax, 0)} m　ポイント：${history.length}　細線：${minorStep} m / 太線：${majorStep} m / ラベル：${labelStep} m　ホイール/ドラッグで操作`;
     }
 
     function renderHistory() {
