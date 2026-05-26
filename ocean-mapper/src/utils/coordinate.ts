@@ -60,6 +60,28 @@ export function directionText(x: number, y: number, z: number): string {
   return `${eastWest}、${northSouth}、${depth}`
 }
 
+export interface PointDistanceResult {
+  distance3d: number
+  distance2d: number
+  depthDiff: number
+  bearing: number
+}
+
+export function calculatePointDistance(
+  p1: { x: number; y: number; z: number },
+  p2: { x: number; y: number; z: number },
+): PointDistanceResult {
+  const dx = p2.x - p1.x
+  const dy = p2.y - p1.y
+  const dz = p2.z - p1.z
+  const distance2d = Math.sqrt(dx * dx + dy * dy)
+  const distance3d = Math.sqrt(dx * dx + dy * dy + dz * dz)
+  const depthDiff = Math.abs(dz)
+  // Bearing from p1 to p2 (0°=North, 90°=East)
+  const bearing = distance2d < 1e-9 ? 0 : normalizeDegrees(Math.atan2(dx, dy) * 180 / Math.PI)
+  return { distance3d, distance2d, depthDiff, bearing }
+}
+
 export function makePointId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID()

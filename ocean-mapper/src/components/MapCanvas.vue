@@ -100,7 +100,92 @@
               fill="#eef7ff" :font-size="7.5 * z" font-weight="700" dominant-baseline="middle"
             >{{ p.name }}</text>
           </g>
+
+          <!-- Distance measurement line -->
+          <template v-if="distanceResult && resolvedA && resolvedB">
+            <line
+              :x1="sx(resolvedA.x)" :y1="sy(resolvedA.y)"
+              :x2="sx(resolvedB.x)" :y2="sy(resolvedB.y)"
+              stroke="#ffd166" :stroke-width="2 * z"
+              stroke-dasharray="8,5"
+              opacity="0.85"
+            />
+            <circle :cx="sx(resolvedA.x)" :cy="sy(resolvedA.y)" :r="5 * z" fill="#ffd166" opacity="0.7" />
+            <circle :cx="sx(resolvedB.x)" :cy="sy(resolvedB.y)" :r="5 * z" fill="#ffd166" opacity="0.7" />
+            <rect
+              :x="(sx(resolvedA.x) + sx(resolvedB.x)) / 2 - 42 * z"
+              :y="(sy(resolvedA.y) + sy(resolvedB.y)) / 2 - 10 * z"
+              :width="84 * z" :height="16 * z"
+              :rx="4 * z"
+              fill="rgba(4,17,29,0.82)" stroke="#ffd166" :stroke-width="0.8 * z"
+            />
+            <text
+              :x="(sx(resolvedA.x) + sx(resolvedB.x)) / 2"
+              :y="(sy(resolvedA.y) + sy(resolvedB.y)) / 2 + 1 * z"
+              fill="#ffd166" :font-size="7.5 * z" font-weight="700"
+              text-anchor="middle" dominant-baseline="middle"
+            >{{ formatNumber(distanceResult.distance2d, 1) }} m</text>
+          </template>
         </svg>
+      </div>
+
+      <!-- Distance measurement panel -->
+      <div class="measure-panel">
+        <div class="measure-header">
+          <p class="measure-title">📏 距離計測</p>
+          <button v-if="measureA || measureB" class="secondary measure-reset" @click="resetMeasure">リセット</button>
+        </div>
+        <div class="measure-selectors">
+          <label class="measure-label">
+            ポイントA
+            <select v-model="measureA">
+              <option value="" disabled>選択してください</option>
+              <option
+                v-for="p in selectablePoints"
+                :key="'a-' + p.id"
+                :value="p.id"
+                :disabled="p.id === measureB"
+              >{{ p.icon }} {{ p.name }}</option>
+            </select>
+          </label>
+          <span class="measure-arrow">⟷</span>
+          <label class="measure-label">
+            ポイントB
+            <select v-model="measureB">
+              <option value="" disabled>選択してください</option>
+              <option
+                v-for="p in selectablePoints"
+                :key="'b-' + p.id"
+                :value="p.id"
+                :disabled="p.id === measureA"
+              >{{ p.icon }} {{ p.name }}</option>
+            </select>
+          </label>
+        </div>
+        <div v-if="distanceResult" class="measure-results">
+          <div class="measure-metric">
+            <span>3D距離</span>
+            <strong>{{ formatNumber(distanceResult.distance3d) }} m</strong>
+          </div>
+          <div class="measure-metric">
+            <span>水平距離</span>
+            <strong>{{ formatNumber(distanceResult.distance2d) }} m</strong>
+          </div>
+          <div class="measure-metric">
+            <span>深度差</span>
+            <strong>{{ formatNumber(distanceResult.depthDiff) }} m</strong>
+          </div>
+          <div class="measure-metric">
+            <span>方位角 (A→B)</span>
+            <strong>{{ formatNumber(distanceResult.bearing) }}°</strong>
+          </div>
+        </div>
+        <div v-else-if="measureA && measureB && measureA === measureB" class="measure-hint">
+          異なるポイントを選択してください。
+        </div>
+        <div v-else class="measure-hint">
+          2つのポイントを選択すると距離を計測します。
+        </div>
       </div>
     </div>
   </section>
@@ -109,7 +194,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import type { MapPoint } from '../types/point'
-import { formatNumber } from '../utils/coordinate'
+import { formatNumber, calculatePointDistance } from '../utils/coordinate'
 
 const props = defineProps<{
   points: MapPoint[]
@@ -329,6 +414,40 @@ function onTouchEnd(): void {
   pinchDist0.value = null
 }
 
+// ── Distance measurement ──
+const ORIGIN_POINT = { id: '__origin__', name: '基準点', icon: '⊕', x: 0, y: 0, z: 0 }
+
+const measureA = ref<string>('')
+const measureB = ref<string>('')
+
+function resetMeasure(): void {
+  measureA.value = ''
+  measureB.value = ''
+}
+
+const selectablePoints = computed(() => {
+  return [ORIGIN_POINT, ...props.points]
+})
+
+const resolvedA = computed(() => selectablePoints.value.find(p => p.id === measureA.value) ?? null)
+const resolvedB = computed(() => selectablePoints.value.find(p => p.id === measureB.value) ?? null)
+
+const distanceResult = computed(() => {
+  if (!resolvedA.value || !resolvedB.value) return null
+  if (resolvedA.value.id === resolvedB.value.id) return null
+  return calculatePointDistance(resolvedA.value, resolvedB.value)
+})
+
+// Auto-clear selection when points change
+watch(() => props.points, () => {
+  if (measureA.value && measureA.value !== ORIGIN_POINT.id && !props.points.find(p => p.id === measureA.value)) {
+    measureA.value = ORIGIN_POINT.id
+  }
+  if (measureB.value && measureB.value !== ORIGIN_POINT.id && !props.points.find(p => p.id === measureB.value)) {
+    measureB.value = ''
+  }
+}, { deep: true })
+
 // Reapply viewBox when points change
 watch(allPoints, () => {
   applyViewBox()
@@ -356,9 +475,104 @@ svg.panning {
   cursor: grabbing;
 }
 
+/* ── Distance measurement panel ── */
+.measure-panel {
+  margin-top: 16px;
+  background: rgba(4, 17, 29, 0.48);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 18px 20px;
+}
+
+.measure-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.measure-title {
+  margin: 0;
+  font-weight: 800;
+  font-size: 1rem;
+  color: #ffd166;
+  letter-spacing: 0.02em;
+}
+
+.measure-selectors {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.measure-label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  flex: 1;
+  min-width: 140px;
+}
+
+.measure-arrow {
+  color: var(--muted);
+  font-size: 1.4rem;
+  padding-bottom: 10px;
+  flex: none;
+}
+
+.measure-results {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.measure-metric {
+  background: rgba(255, 209, 102, 0.08);
+  border: 1px solid rgba(255, 209, 102, 0.22);
+  border-radius: 12px;
+  padding: 14px;
+  display: grid;
+  gap: 6px;
+}
+
+.measure-metric span {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.measure-metric strong {
+  font-family: var(--mono);
+  font-size: clamp(1rem, 2vw, 1.35rem);
+  color: #ffd166;
+  line-height: 1.2;
+}
+
+.measure-hint {
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
 @media (max-width: 720px) {
   svg {
     min-height: 420px;
+  }
+
+  .measure-selectors {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .measure-arrow {
+    text-align: center;
+    padding-bottom: 0;
+  }
+
+  .measure-results {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 </style>
