@@ -1,0 +1,1 @@
+{"root":["./env.d.ts","./src/main.ts","./src/types/point.ts","./src/utils/coordinate.ts","./src/utils/csv.ts","./src/App.vue","./src/components/MapCanvas.vue","./src/components/PointForm.vue","./src/components/PointTable.vue"],"version":"5.7.3"}

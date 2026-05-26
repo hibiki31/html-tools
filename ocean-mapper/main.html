@@ -1,0 +1,1373 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>海洋マッピング座標計算ツール</title>
+  <style>
+    :root {
+      --bg: #071827;
+      --panel: #10263a;
+      --panel-2: #14324d;
+      --text: #eef7ff;
+      --muted: #9fc1d9;
+      --accent: #43c6ff;
+      --accent-2: #69f0ae;
+      --danger: #ff6b6b;
+      --warning: #ffd166;
+      --border: rgba(255, 255, 255, 0.13);
+      --shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+      --radius: 18px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: var(--sans);
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(67, 198, 255, 0.24), transparent 35%),
+        radial-gradient(circle at bottom right, rgba(105, 240, 174, 0.13), transparent 30%),
+        linear-gradient(135deg, #06121d, var(--bg));
+      min-height: 100vh;
+    }
+
+    header {
+      padding: 36px 20px 18px;
+      text-align: center;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: clamp(1.8rem, 4vw, 3.2rem);
+      letter-spacing: 0.03em;
+    }
+
+    header p {
+      margin: 12px auto 0;
+      max-width: 920px;
+      color: var(--muted);
+      line-height: 1.8;
+    }
+
+    main {
+      width: min(1280px, calc(100% - 32px));
+      margin: 0 auto 48px;
+      display: grid;
+      grid-template-columns: 420px 1fr;
+      gap: 20px;
+    }
+
+    .card {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.035));
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      border-radius: var(--radius);
+      backdrop-filter: blur(14px);
+      overflow: hidden;
+    }
+
+    .card h2 {
+      margin: 0;
+      padding: 18px 20px;
+      font-size: 1.05rem;
+      background: rgba(255, 255, 255, 0.055);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .card-body {
+      padding: 20px;
+    }
+
+    .form-grid {
+      display: grid;
+      gap: 16px;
+    }
+
+    .input-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    label {
+      display: grid;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    input, select {
+      width: 100%;
+      border: 1px solid var(--border);
+      background: rgba(5, 18, 30, 0.78);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 13px 14px;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    input[type="color"] {
+      height: 48px;
+      padding: 5px;
+      cursor: pointer;
+    }
+
+    input:focus, select:focus {
+      border-color: rgba(67, 198, 255, 0.85);
+      box-shadow: 0 0 0 4px rgba(67, 198, 255, 0.13);
+    }
+
+    .hint {
+      margin: -6px 0 0;
+      color: var(--muted);
+      font-size: 0.84rem;
+      line-height: 1.55;
+    }
+
+    .section-title {
+      margin: 8px 0 -4px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+      color: #d7efff;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+    }
+
+    .button-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 6px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 999px;
+      padding: 12px 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.12s ease, filter 0.12s ease, background 0.12s ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.07);
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
+      transform: none;
+    }
+
+    .primary {
+      background: linear-gradient(135deg, var(--accent), #4f8cff);
+      color: #04111d;
+    }
+
+    .success {
+      background: linear-gradient(135deg, var(--accent-2), #26d7a7);
+      color: #04111d;
+    }
+
+    .secondary {
+      background: rgba(255, 255, 255, 0.11);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .danger {
+      background: rgba(255, 107, 107, 0.16);
+      color: #ffd5d5;
+      border: 1px solid rgba(255, 107, 107, 0.3);
+    }
+
+    .preset-row {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .preset {
+      text-align: left;
+      background: rgba(67, 198, 255, 0.1);
+      color: var(--text);
+      border: 1px solid rgba(67, 198, 255, 0.22);
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-weight: 600;
+    }
+
+    .results {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .metric {
+      background: rgba(4, 17, 29, 0.58);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      min-height: 116px;
+      display: grid;
+      align-content: center;
+      gap: 8px;
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    .metric strong {
+      font-family: var(--mono);
+      font-size: clamp(1.25rem, 2.5vw, 1.85rem);
+      line-height: 1.1;
+    }
+
+    .east { color: #8be9fd; }
+    .north { color: #b8ffcf; }
+    .depth { color: #ffdd8a; }
+
+    .summary {
+      background: rgba(105, 240, 174, 0.1);
+      border: 1px solid rgba(105, 240, 174, 0.22);
+      color: #dbffe9;
+      border-radius: 16px;
+      padding: 16px;
+      line-height: 1.8;
+      margin-bottom: 18px;
+    }
+
+    .summary.error {
+      background: rgba(255, 107, 107, 0.12);
+      border-color: rgba(255, 107, 107, 0.3);
+      color: #ffd5d5;
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 240px;
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .steps {
+      background: rgba(4, 17, 29, 0.48);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      font-family: var(--mono);
+      color: #d7efff;
+      line-height: 1.75;
+      white-space: pre-wrap;
+      overflow-x: auto;
+      margin: 0;
+    }
+
+    .compass-box {
+      display: grid;
+      place-items: center;
+      background: rgba(4, 17, 29, 0.48);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      min-height: 240px;
+      padding: 12px;
+    }
+
+    .wide {
+      grid-column: 1 / -1;
+    }
+
+    .map-card {
+      grid-column: 1 / -1;
+    }
+
+    .map-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+
+    .map-meta {
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+
+    .map-wrap {
+      background: rgba(4, 17, 29, 0.48);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    #mapSvg {
+      width: 100%;
+      min-height: 520px;
+      display: block;
+      cursor: grab;
+      touch-action: none;
+      user-select: none;
+      background:
+        radial-gradient(circle at 50% 50%, rgba(67, 198, 255, 0.06), transparent 32%),
+        rgba(1, 10, 18, 0.28);
+    }
+
+    #mapSvg.panning {
+      cursor: grabbing;
+    }
+
+    .history {
+      grid-column: 1 / -1;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.92rem;
+    }
+
+    th, td {
+      padding: 12px 10px;
+      border-bottom: 1px solid var(--border);
+      text-align: right;
+      white-space: nowrap;
+      vertical-align: middle;
+    }
+
+    th:first-child, td:first-child,
+    th:nth-child(2), td:nth-child(2) {
+      text-align: left;
+    }
+
+    th {
+      color: var(--muted);
+      font-weight: 700;
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    .point-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border);
+    }
+
+    .color-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.45);
+      flex: none;
+    }
+
+    .file-input {
+      display: none;
+    }
+
+    footer {
+      width: min(1280px, calc(100% - 32px));
+      margin: -24px auto 48px;
+      color: var(--muted);
+      line-height: 1.7;
+      font-size: 0.9rem;
+    }
+
+    code {
+      font-family: var(--mono);
+      color: #d7efff;
+    }
+
+    .toast {
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      background: rgba(4, 17, 29, 0.94);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 12px 14px;
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      transform: translateY(140%);
+      transition: transform 0.2s ease;
+      z-index: 20;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+    }
+
+    @media (max-width: 1080px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .input-row,
+      .results,
+      .detail-grid {
+        grid-template-columns: 1fr;
+      }
+
+      #mapSvg {
+        min-height: 420px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>海洋マッピング座標計算ツール</h1>
+    <p>
+      基準点を <code>(0, 0, 0)</code> とし、xを東西方向、yを南北方向、zを深度方向として計算します。
+      方角は <code>0°=北 / 90°=東 / 180°=南 / 270°=西</code> です。
+    </p>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>入力</h2>
+      <div class="card-body">
+        <div class="form-grid">
+          <p class="section-title">ポイント情報</p>
+
+          <label>
+            ポイント名称
+            <input id="pointName" type="text" maxlength="80" value="Point-001" placeholder="例：岩礁A / 調査点01 / Anchor" />
+          </label>
+
+          <label>
+            アイコン
+            <select id="pointIcon">
+              <option value="📍" selected>📍 ピン</option>
+              <option value="⚓">⚓ アンカー</option>
+              <option value="🌊">🌊 波</option>
+              <option value="🐟">🐟 魚</option>
+              <option value="🦈">🦈 サメ</option>
+              <option value="🐙">🐙 タコ</option>
+              <option value="🦑">🦑 イカ</option>
+              <option value="🐚">🐚 貝殻</option>
+              <option value="🐳">🐳 クジラ</option>
+              <option value="🦭">🦭 アザラシ</option>
+              <option value="🪸">🪸 サンゴ</option>
+              <option value="🪝">🪝 釣り針</option>
+              <option value="⛵">⛵ ヨット</option>
+              <option value="🚢">🚢 船</option>
+              <option value="🧭">🧭 コンパス</option>
+              <option value="🗺️">🗺️ 地図</option>
+              <option value="💎">💎 宝石</option>
+              <option value="💀">💀 どくろ</option>
+              <option value="🏴‍☠️">🏴‍☠️ 海賊旗</option>
+              <option value="🔱">🔱 トライデント</option>
+              <option value="⭐">⭐ 星</option>
+              <option value="❗">❗ 警告</option>
+              <option value="💣">💣 機雷</option>
+              <option value="🔭">🔭 望遠鏡</option>
+            </select>
+          </label>
+
+          <p class="section-title">測定値</p>
+
+          <div class="input-row">
+            <label>
+              距離 [m]
+              <input id="distance" type="number" inputmode="decimal" min="0" step="0.01" value="1291" />
+            </label>
+
+            <label>
+              深度 [m]
+              <input id="depth" type="number" inputmode="decimal" min="0" step="0.01" value="128" />
+            </label>
+          </div>
+
+          <label>
+            方角 [°]
+            <input id="bearing" type="number" inputmode="decimal" min="0" max="360" step="0.01" value="268" />
+          </label>
+
+          <label>
+            方角の意味
+            <select id="bearingMode">
+              <option value="toBase" selected>マッピング地点から基準点への方角</option>
+              <option value="fromBase">基準点からマッピング地点への方角</option>
+            </select>
+          </label>
+
+          <label>
+            距離の種類
+            <select id="distanceType">
+              <option value="slant" selected>斜距離：深度を使って水平距離を計算</option>
+              <option value="horizontal">水平距離：距離をそのまま水平距離として使う</option>
+            </select>
+          </label>
+
+          <p class="hint">
+            通常、ソナー・ケーブル長・直線距離なら「斜距離」、地図上の平面距離なら「水平距離」を選んでください。
+          </p>
+
+          <div class="button-row">
+            <button class="primary" id="calcButton">計算する</button>
+            <button class="success" id="addPointButton">履歴と地図へ追加</button>
+            <button class="secondary" id="copyButton">結果をコピー</button>
+            <button class="secondary" id="resetButton">入力リセット</button>
+          </div>
+        </div>
+
+        <div class="preset-row" aria-label="サンプル入力">
+          <button class="preset" data-name="調査点-A" data-color="#43c6ff" data-icon="📍" data-distance="1400" data-depth="178" data-bearing="275">例1：距離1400m / 深度178m / 西 275°</button>
+          <button class="preset" data-name="調査点-B" data-color="#69f0ae" data-icon="⚓" data-distance="1291" data-depth="128" data-bearing="268">例2：距離1291m / 深度128m / 西 268°</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>計算結果</h2>
+      <div class="card-body">
+        <div id="summary" class="summary">入力値をもとに計算します。</div>
+
+        <div class="results">
+          <div class="metric">
+            <span>x：東西方向</span>
+            <strong id="xValue" class="east">--</strong>
+          </div>
+          <div class="metric">
+            <span>y：南北方向</span>
+            <strong id="yValue" class="north">--</strong>
+          </div>
+          <div class="metric">
+            <span>z：深度方向</span>
+            <strong id="zValue" class="depth">--</strong>
+          </div>
+        </div>
+
+        <div class="detail-grid">
+          <pre id="steps" class="steps">ここに計算式を表示します。</pre>
+          <div class="compass-box">
+            <svg viewBox="0 0 220 220" role="img" aria-label="方角表示">
+              <defs>
+                <marker id="arrow" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto-start-reverse">
+                  <path d="M 0 0 L 8 4 L 0 8 z" fill="#43c6ff"></path>
+                </marker>
+              </defs>
+              <circle cx="110" cy="110" r="88" fill="rgba(255,255,255,0.035)" stroke="rgba(255,255,255,0.18)" stroke-width="2"></circle>
+              <line x1="110" y1="18" x2="110" y2="202" stroke="rgba(255,255,255,0.15)"></line>
+              <line x1="18" y1="110" x2="202" y2="110" stroke="rgba(255,255,255,0.15)"></line>
+              <text x="110" y="15" text-anchor="middle" fill="#9fc1d9" font-size="14">N</text>
+              <text x="110" y="215" text-anchor="middle" fill="#9fc1d9" font-size="14">S</text>
+              <text x="207" y="115" text-anchor="middle" fill="#9fc1d9" font-size="14">E</text>
+              <text x="13" y="115" text-anchor="middle" fill="#9fc1d9" font-size="14">W</text>
+              <line id="bearingArrow" x1="110" y1="110" x2="110" y2="40" stroke="#43c6ff" stroke-width="5" stroke-linecap="round" marker-end="url(#arrow)"></line>
+              <circle cx="110" cy="110" r="5" fill="#69f0ae"></circle>
+              <text id="bearingLabel" x="110" y="136" text-anchor="middle" fill="#eef7ff" font-size="13" font-family="ui-monospace, monospace">--°</text>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card map-card">
+      <h2>マッピング</h2>
+      <div class="card-body">
+        <div class="map-toolbar">
+          <div class="map-meta" id="mapMeta">履歴に追加したポイントを地図上に表示します。現在の計算結果は点線でプレビューされます。</div>
+          <div class="button-row">
+            <button class="secondary" id="fitMapButton">地図を再描画</button>
+            <button class="danger" id="clearHistoryButton">履歴を全削除</button>
+          </div>
+        </div>
+        <div class="map-wrap">
+          <svg id="mapSvg" viewBox="0 0 900 560" role="img" aria-label="ポイントマップ"></svg>
+        </div>
+      </div>
+    </section>
+
+    <section class="card history">
+      <h2>計算履歴 / CSV</h2>
+      <div class="card-body">
+        <div class="map-toolbar">
+          <div class="map-meta">
+            CSVはポイント名・色・アイコン・入力値・計算結果を保存します。読み込み時は現在の履歴に追加されます。
+          </div>
+          <div class="button-row">
+            <button class="secondary" id="downloadCsvButton">CSV保存</button>
+            <button class="secondary" id="loadCsvButton">CSV読み込み</button>
+            <input id="csvFile" class="file-input" type="file" accept=".csv,text/csv" />
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ポイント</th>
+                <th>時刻</th>
+                <th>距離</th>
+                <th>深度</th>
+                <th>入力方角</th>
+                <th>基準点からの方角</th>
+                <th>水平距離</th>
+                <th>x</th>
+                <th>y</th>
+                <th>z</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="historyBody">
+              <tr><td colspan="11" style="text-align:left;color:var(--muted);">まだ履歴はありません。</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>
+      座標系：<code>x+</code> は東、<code>x-</code> は西、<code>y+</code> は北、<code>y-</code> は南、<code>z</code> は海面を0mとして深度を負の値で表示します。
+      このHTMLは単一ファイルで動作し、外部ライブラリは使用していません。
+    </p>
+  </footer>
+
+  <div id="toast" class="toast">コピーしました</div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    const inputs = {
+      pointName: $("pointName"),
+      pointIcon: $("pointIcon"),
+      distance: $("distance"),
+      depth: $("depth"),
+      bearing: $("bearing"),
+      bearingMode: $("bearingMode"),
+      distanceType: $("distanceType"),
+    };
+
+    // ポイント自動カラーパレット
+    const COLOR_PALETTE = [
+      "#43c6ff", "#69f0ae", "#ffd166", "#ff6b9d", "#c77dff",
+      "#ff9f1c", "#06d6a0", "#ef476f", "#118ab2", "#ffd700",
+    ];
+
+    const output = {
+      summary: $("summary"),
+      xValue: $("xValue"),
+      yValue: $("yValue"),
+      zValue: $("zValue"),
+      steps: $("steps"),
+      bearingArrow: $("bearingArrow"),
+      bearingLabel: $("bearingLabel"),
+      historyBody: $("historyBody"),
+      mapSvg: $("mapSvg"),
+      mapMeta: $("mapMeta"),
+      toast: $("toast"),
+      csvFile: $("csvFile"),
+    };
+
+    let lastResult = null;
+    let lastResultText = "";
+    let history = [];
+
+    // マップ パン・ズーム 状態
+    const MAP_W = 900;
+    const MAP_H = 560;
+    let mapView = { x: 0, y: 0, w: MAP_W, h: MAP_H };
+    let mapPan = { active: false, startX: 0, startY: 0, originX: 0, originY: 0 };
+    // タッチ ピンチ用
+    let pinchDist0 = null;
+    let pinchView0 = null;
+
+    function applyMapViewBox() {
+      output.mapSvg.setAttribute("viewBox", `${mapView.x} ${mapView.y} ${mapView.w} ${mapView.h}`);
+    }
+
+    function resetMapView() {
+      mapView = { x: 0, y: 0, w: MAP_W, h: MAP_H };
+      applyMapViewBox();
+    }
+
+    function svgPoint(clientX, clientY) {
+      const rect = output.mapSvg.getBoundingClientRect();
+      return {
+        x: mapView.x + (clientX - rect.left) / rect.width * mapView.w,
+        y: mapView.y + (clientY - rect.top) / rect.height * mapView.h,
+      };
+    }
+
+    function zoomMapAt(clientX, clientY, factor) {
+      const minW = 80, maxW = MAP_W * 12;
+      const newW = Math.min(Math.max(mapView.w * factor, minW), maxW);
+      const newH = newW * (MAP_H / MAP_W);
+      const pt = svgPoint(clientX, clientY);
+      mapView.x = pt.x - (pt.x - mapView.x) * (newW / mapView.w);
+      mapView.y = pt.y - (pt.y - mapView.y) * (newH / mapView.h);
+      mapView.w = newW;
+      mapView.h = newH;
+      applyMapViewBox();
+    }
+
+    // ホイールでズーム
+    output.mapSvg.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      const factor = e.deltaY > 0 ? 1.18 : 1 / 1.18;
+      zoomMapAt(e.clientX, e.clientY, factor);
+    }, { passive: false });
+
+    // ポインタドラッグでパン
+    output.mapSvg.addEventListener("pointerdown", (e) => {
+      if (e.pointerType === "touch") return; // タッチはtouch eventsで処理
+      mapPan.active = true;
+      mapPan.startX = e.clientX;
+      mapPan.startY = e.clientY;
+      mapPan.originX = mapView.x;
+      mapPan.originY = mapView.y;
+      output.mapSvg.setPointerCapture(e.pointerId);
+      output.mapSvg.classList.add("panning");
+    });
+
+    output.mapSvg.addEventListener("pointermove", (e) => {
+      if (!mapPan.active) return;
+      const rect = output.mapSvg.getBoundingClientRect();
+      const dx = (e.clientX - mapPan.startX) / rect.width * mapView.w;
+      const dy = (e.clientY - mapPan.startY) / rect.height * mapView.h;
+      mapView.x = mapPan.originX - dx;
+      mapView.y = mapPan.originY - dy;
+      applyMapViewBox();
+    });
+
+    output.mapSvg.addEventListener("pointerup", () => {
+      mapPan.active = false;
+      output.mapSvg.classList.remove("panning");
+    });
+
+    output.mapSvg.addEventListener("pointercancel", () => {
+      mapPan.active = false;
+      output.mapSvg.classList.remove("panning");
+    });
+
+    // タッチ：ピンチズーム＋パン
+    function touchDist(touches) {
+      const dx = touches[0].clientX - touches[1].clientX;
+      const dy = touches[0].clientY - touches[1].clientY;
+      return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    output.mapSvg.addEventListener("touchstart", (e) => {
+      e.preventDefault();
+      if (e.touches.length === 1) {
+        mapPan.active = true;
+        mapPan.startX = e.touches[0].clientX;
+        mapPan.startY = e.touches[0].clientY;
+        mapPan.originX = mapView.x;
+        mapPan.originY = mapView.y;
+        pinchDist0 = null;
+      } else if (e.touches.length === 2) {
+        mapPan.active = false;
+        pinchDist0 = touchDist(e.touches);
+        pinchView0 = { ...mapView };
+      }
+    }, { passive: false });
+
+    output.mapSvg.addEventListener("touchmove", (e) => {
+      e.preventDefault();
+      if (e.touches.length === 1 && mapPan.active) {
+        const rect = output.mapSvg.getBoundingClientRect();
+        const dx = (e.touches[0].clientX - mapPan.startX) / rect.width * mapView.w;
+        const dy = (e.touches[0].clientY - mapPan.startY) / rect.height * mapView.h;
+        mapView.x = mapPan.originX - dx;
+        mapView.y = mapPan.originY - dy;
+        applyMapViewBox();
+      } else if (e.touches.length === 2 && pinchDist0 !== null) {
+        const dist = touchDist(e.touches);
+        const factor = pinchDist0 / dist;
+        const minW = 80, maxW = MAP_W * 12;
+        const newW = Math.min(Math.max(pinchView0.w * factor, minW), maxW);
+        const newH = newW * (MAP_H / MAP_W);
+        const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+        const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+        const rect = output.mapSvg.getBoundingClientRect();
+        const ptX = pinchView0.x + (cx - rect.left) / rect.width * pinchView0.w;
+        const ptY = pinchView0.y + (cy - rect.top) / rect.height * pinchView0.h;
+        mapView.x = ptX - (ptX - pinchView0.x) * (newW / pinchView0.w);
+        mapView.y = ptY - (ptY - pinchView0.y) * (newH / pinchView0.h);
+        mapView.w = newW;
+        mapView.h = newH;
+        applyMapViewBox();
+      }
+    }, { passive: false });
+
+    output.mapSvg.addEventListener("touchend", () => {
+      mapPan.active = false;
+      pinchDist0 = null;
+    }, { passive: false });
+
+    function normalizeDegrees(deg) {
+      return ((deg % 360) + 360) % 360;
+    }
+
+    function formatNumber(value, digits = 2) {
+      if (!Number.isFinite(value)) return "--";
+      return value.toLocaleString("ja-JP", {
+        minimumFractionDigits: digits,
+        maximumFractionDigits: digits,
+      });
+    }
+
+    function csvNumber(value) {
+      return Number.isFinite(value) ? String(value) : "";
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>'"]/g, (char) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        "'": "&#39;",
+        '"': "&quot;",
+      }[char]));
+    }
+
+    function directionText(x, y, z) {
+      const eastWest = x >= 0 ? `東へ 約${formatNumber(Math.abs(x), 1)} m` : `西へ 約${formatNumber(Math.abs(x), 1)} m`;
+      const northSouth = y >= 0 ? `北へ 約${formatNumber(Math.abs(y), 1)} m` : `南へ 約${formatNumber(Math.abs(y), 1)} m`;
+      const depth = `深さ ${formatNumber(Math.abs(z), 1)} m`;
+      return `${eastWest}、${northSouth}、${depth}`;
+    }
+
+    function makePointId() {
+      return `p_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+    }
+
+    function getPointInput() {
+      return {
+        id: makePointId(),
+        name: inputs.pointName.value.trim() || `Point-${String(history.length + 1).padStart(3, "0")}`,
+        color: COLOR_PALETTE[history.length % COLOR_PALETTE.length],
+        icon: inputs.pointIcon.value || "📍",
+      };
+    }
+
+    function setError(message) {
+      output.summary.classList.add("error");
+      output.summary.textContent = message;
+      output.xValue.textContent = "--";
+      output.yValue.textContent = "--";
+      output.zValue.textContent = "--";
+      output.steps.textContent = "入力値を確認してください。";
+      lastResult = null;
+      lastResultText = "";
+      renderMap();
+    }
+
+    function calculate(updatePreview = true) {
+      const distance = Number(inputs.distance.value);
+      const depth = Number(inputs.depth.value);
+      const bearingInput = Number(inputs.bearing.value);
+      const bearingMode = inputs.bearingMode.value;
+      const distanceType = inputs.distanceType.value;
+
+      if (!Number.isFinite(distance) || distance < 0) {
+        setError("距離は0以上の数値で入力してください。");
+        return null;
+      }
+      if (!Number.isFinite(depth) || depth < 0) {
+        setError("深度は0以上の数値で入力してください。");
+        return null;
+      }
+      if (!Number.isFinite(bearingInput)) {
+        setError("方角は数値で入力してください。例：西向きなら270°付近です。");
+        return null;
+      }
+      if (distanceType === "slant" && distance < depth) {
+        setError("斜距離は深度以上である必要があります。距離の種類を確認してください。");
+        return null;
+      }
+
+      const bearingNormalized = normalizeDegrees(bearingInput);
+      const bearingFromBase = bearingMode === "toBase"
+        ? normalizeDegrees(bearingNormalized + 180)
+        : bearingNormalized;
+
+      const horizontalDistance = distanceType === "slant"
+        ? Math.sqrt(distance * distance - depth * depth)
+        : distance;
+
+      const rad = bearingFromBase * Math.PI / 180;
+      const x = horizontalDistance * Math.sin(rad);
+      const y = horizontalDistance * Math.cos(rad);
+      const z = -depth;
+      const point = getPointInput();
+
+      const result = {
+        ...point,
+        createdAt: new Date().toISOString(),
+        distance,
+        depth,
+        bearingInput: bearingNormalized,
+        bearingMode,
+        distanceType,
+        bearingFromBase,
+        horizontalDistance,
+        x,
+        y,
+        z,
+      };
+
+      output.summary.classList.remove("error");
+      output.summary.innerHTML = `<strong>${escapeHtml(point.icon)} ${escapeHtml(point.name)}</strong>：基準点から見て、<strong>${directionText(x, y, z)}</strong> の位置です。`;
+      output.xValue.textContent = `${formatNumber(x)} m`;
+      output.yValue.textContent = `${formatNumber(y)} m`;
+      output.zValue.textContent = `${formatNumber(z)} m`;
+
+      const distanceKindText = distanceType === "slant" ? "斜距離" : "水平距離";
+      const bearingModeText = bearingMode === "toBase"
+        ? "マッピング地点から基準点への方角"
+        : "基準点からマッピング地点への方角";
+
+      output.steps.textContent = [
+        `ポイント = ${point.icon} ${point.name}`,
+        `入力距離 = ${formatNumber(distance)} m (${distanceKindText})`,
+        `深度 = ${formatNumber(depth)} m`,
+        `入力方角 = ${formatNumber(bearingNormalized)}° (${bearingModeText})`,
+        bearingMode === "toBase"
+          ? `基準点から対象地点への方角 = (${formatNumber(bearingNormalized)} + 180) mod 360 = ${formatNumber(bearingFromBase)}°`
+          : `基準点から対象地点への方角 = ${formatNumber(bearingFromBase)}°`,
+        distanceType === "slant"
+          ? `水平距離 = √(${formatNumber(distance)}² - ${formatNumber(depth)}²) = ${formatNumber(horizontalDistance)} m`
+          : `水平距離 = ${formatNumber(horizontalDistance)} m`,
+        `x = 水平距離 × sin(${formatNumber(bearingFromBase)}°) = ${formatNumber(x)} m`,
+        `y = 水平距離 × cos(${formatNumber(bearingFromBase)}°) = ${formatNumber(y)} m`,
+        `z = -深度 = ${formatNumber(z)} m`,
+      ].join("\n");
+
+      updateCompass(bearingFromBase);
+      lastResult = result;
+
+      lastResultText = [
+        "海洋マッピング座標計算結果",
+        `ポイント: ${point.icon} ${point.name}`,
+        `色: ${point.color}`,
+        `距離: ${formatNumber(distance)} m (${distanceKindText})`,
+        `深度: ${formatNumber(depth)} m`,
+        `入力方角: ${formatNumber(bearingNormalized)}°`,
+        `基準点から対象地点への方角: ${formatNumber(bearingFromBase)}°`,
+        `水平距離: ${formatNumber(horizontalDistance)} m`,
+        `x: ${formatNumber(x)} m`,
+        `y: ${formatNumber(y)} m`,
+        `z: ${formatNumber(z)} m`,
+        directionText(x, y, z),
+      ].join("\n");
+
+      if (updatePreview) renderMap(result);
+      return result;
+    }
+
+    function addPointToHistory() {
+      const result = calculate(false);
+      if (!result) return;
+      history.unshift(result);
+      renderHistory();
+      renderMap(result);
+      showToast("履歴と地図へ追加しました");
+      inputs.pointName.value = nextPointName();
+    }
+
+    function nextPointName() {
+      return `Point-${String(history.length + 1).padStart(3, "0")}`;
+    }
+
+    function updateCompass(bearingFromBase) {
+      const rad = bearingFromBase * Math.PI / 180;
+      const cx = 110;
+      const cy = 110;
+      const length = 70;
+      const x2 = cx + length * Math.sin(rad);
+      const y2 = cy - length * Math.cos(rad);
+      output.bearingArrow.setAttribute("x1", cx);
+      output.bearingArrow.setAttribute("y1", cy);
+      output.bearingArrow.setAttribute("x2", x2.toFixed(2));
+      output.bearingArrow.setAttribute("y2", y2.toFixed(2));
+      output.bearingLabel.textContent = `${formatNumber(bearingFromBase)}°`;
+    }
+
+    function niceStep(range) {
+      if (!Number.isFinite(range) || range <= 0) return 100;
+      const rough = range / 4;
+      const power = Math.pow(10, Math.floor(Math.log10(rough)));
+      const fraction = rough / power;
+      if (fraction < 1.5) return 1 * power;
+      if (fraction < 3.5) return 2 * power;
+      if (fraction < 7.5) return 5 * power;
+      return 10 * power;
+    }
+
+    function renderMap(previewPoint = lastResult) {
+      const svg = output.mapSvg;
+      const width = 900;
+      const height = 560;
+      const margin = 60;
+      const originX = width / 2;
+      const originY = height / 2;
+      const plotW = width - margin * 2;
+      const plotH = height - margin * 2;
+
+      const points = [...history];
+      if (previewPoint && !points.some((p) => p.id === previewPoint.id)) points.push({ ...previewPoint, preview: true });
+
+      const maxAbs = Math.max(
+        100,
+        ...points.map((p) => Math.abs(p.x) || 0),
+        ...points.map((p) => Math.abs(p.y) || 0)
+      );
+      const range = maxAbs * 1.18;
+      const scale = Math.min(plotW / (range * 2), plotH / (range * 2));
+      // 目盛り線: 10m単位、太線: 100m単位、数字ラベル: 200m単位
+      const labelStep = 200;
+      const majorStep = 100;
+      const minorStep = 10;
+      const axisMax = Math.ceil(range / labelStep) * labelStep;
+
+      const sx = (x) => originX + x * scale;
+      const sy = (y) => originY - y * scale;
+
+      const grid = [];
+      for (let i = -axisMax; i <= axisMax + minorStep / 2; i += minorStep) {
+        const value = Math.round(i); // 浮動小数点誤差を排除
+        const x = sx(value);
+        const y = sy(value);
+        const isOrigin = value === 0;
+        const isMajor = value % majorStep === 0;
+        const isLabel = value % labelStep === 0;
+        const strokeColor = isOrigin
+          ? "rgba(255,255,255,0.32)"
+          : isMajor
+          ? "rgba(255,255,255,0.16)"
+          : "rgba(255,255,255,0.05)";
+        const strokeW = isOrigin ? 1.5 : isMajor ? 0.7 : 0.3;
+        grid.push(`<line x1="${x.toFixed(2)}" y1="${margin}" x2="${x.toFixed(2)}" y2="${height - margin}" stroke="${strokeColor}" stroke-width="${strokeW}" />`);
+        grid.push(`<line x1="${margin}" y1="${y.toFixed(2)}" x2="${width - margin}" y2="${y.toFixed(2)}" stroke="${strokeColor}" stroke-width="${strokeW}" />`);
+        if (isLabel && !isOrigin) {
+          grid.push(`<text x="${x.toFixed(2)}" y="${originY + 12}" fill="rgba(159,193,217,0.55)" font-size="6.5" text-anchor="middle">${value}</text>`);
+          grid.push(`<text x="${originX - 4}" y="${y.toFixed(2)}" fill="rgba(159,193,217,0.55)" font-size="6.5" text-anchor="end" dominant-baseline="middle">${value}</text>`);
+        }
+      }
+
+      const pointShapes = points.map((p) => {
+        const x = sx(p.x);
+        const y = sy(p.y);
+        const opacity = p.preview ? 0.62 : 1;
+        const strokeDash = p.preview ? "5 4" : "none";
+        const safeColor = /^#[0-9a-f]{6}$/i.test(p.color) ? p.color : "#43c6ff";
+        return `
+          <g opacity="${opacity}">
+            <text x="${x.toFixed(2)}" y="${(y + 3).toFixed(2)}" text-anchor="middle" dominant-baseline="middle" font-size="10">${escapeHtml(p.icon)}</text>
+            <text x="${(x + 9).toFixed(2)}" y="${(y + 3).toFixed(2)}" fill="#eef7ff" font-size="7.5" font-weight="700" dominant-baseline="middle">${escapeHtml(p.name)}${p.preview ? " [preview]" : ""}</text>
+          </g>
+        `;
+      }).join("");
+
+      svg.innerHTML = `
+        <rect x="0" y="0" width="${width}" height="${height}" fill="transparent" />
+        ${grid.join("\n")}
+        <line x1="${originX}" y1="${margin - 10}" x2="${originX}" y2="${height - margin + 10}" stroke="rgba(105,240,174,0.45)" stroke-width="1.5" />
+        <line x1="${margin - 10}" y1="${originY}" x2="${width - margin + 10}" y2="${originY}" stroke="rgba(67,198,255,0.45)" stroke-width="1.5" />
+        <text x="${originX}" y="${margin - 14}" fill="#b8ffcf" text-anchor="middle" font-size="8" font-weight="700">北 / y+</text>
+        <text x="${originX}" y="${height - margin + 24}" fill="#b8ffcf" text-anchor="middle" font-size="8" font-weight="700">南 / y-</text>
+        <text x="${width - margin + 24}" y="${originY + 3}" fill="#8be9fd" text-anchor="middle" font-size="8" font-weight="700">東 / x+</text>
+        <text x="${margin - 24}" y="${originY + 3}" fill="#8be9fd" text-anchor="middle" font-size="8" font-weight="700">西 / x-</text>
+        <circle cx="${originX}" cy="${originY}" r="4" fill="#ffffff" />
+        <text x="${originX + 6}" y="${originY - 6}" fill="#ffffff" font-size="7.5" font-weight="700">基準点</text>
+        ${pointShapes}
+      `;
+
+      applyMapViewBox();
+      output.mapMeta.textContent = `表示範囲：±${formatNumber(axisMax, 0)} m　ポイント：${history.length}　細線：${minorStep} m / 太線：${majorStep} m / ラベル：${labelStep} m　ホイール/ドラッグで操作`;
+    }
+
+    function renderHistory() {
+      if (history.length === 0) {
+        output.historyBody.innerHTML = `<tr><td colspan="11" style="text-align:left;color:var(--muted);">まだ履歴はありません。</td></tr>`;
+        return;
+      }
+
+      output.historyBody.innerHTML = history.map((row, index) => `
+        <tr>
+          <td>
+            <span class="point-chip">
+              <span class="color-dot" style="background:${escapeHtml(row.color)}"></span>
+              <span>${escapeHtml(row.icon)} ${escapeHtml(row.name)}</span>
+            </span>
+          </td>
+          <td>${new Date(row.createdAt).toLocaleString("ja-JP")}</td>
+          <td>${formatNumber(row.distance)} m</td>
+          <td>${formatNumber(row.depth)} m</td>
+          <td>${formatNumber(row.bearingInput)}°</td>
+          <td>${formatNumber(row.bearingFromBase)}°</td>
+          <td>${formatNumber(row.horizontalDistance)} m</td>
+          <td>${formatNumber(row.x)} m</td>
+          <td>${formatNumber(row.y)} m</td>
+          <td>${formatNumber(row.z)} m</td>
+          <td><button class="secondary" data-delete-index="${index}">削除</button></td>
+        </tr>
+      `).join("");
+
+      for (const button of output.historyBody.querySelectorAll("[data-delete-index]")) {
+        button.addEventListener("click", () => {
+          const index = Number(button.dataset.deleteIndex);
+          history.splice(index, 1);
+          renderHistory();
+          renderMap();
+          showToast("ポイントを削除しました");
+        });
+      }
+    }
+
+    async function copyResult() {
+      if (!lastResultText) calculate(true);
+      if (!lastResultText) return;
+
+      try {
+        await navigator.clipboard.writeText(lastResultText);
+        showToast("結果をコピーしました");
+      } catch (error) {
+        showToast("コピーに失敗しました。ブラウザの権限を確認してください。");
+      }
+    }
+
+    function resetForm() {
+      inputs.pointName.value = nextPointName();
+      inputs.pointIcon.value = "📍";
+      inputs.distance.value = "";
+      inputs.depth.value = "";
+      inputs.bearing.value = "";
+      inputs.bearingMode.value = "toBase";
+      inputs.distanceType.value = "slant";
+      output.summary.classList.remove("error");
+      output.summary.textContent = "入力値をもとに計算します。";
+      output.xValue.textContent = "--";
+      output.yValue.textContent = "--";
+      output.zValue.textContent = "--";
+      output.steps.textContent = "ここに計算式を表示します。";
+      updateCompass(0);
+      lastResult = null;
+      lastResultText = "";
+      renderMap();
+    }
+
+    function clearHistory() {
+      if (!confirm("計算履歴と地図上のポイントをすべて削除しますか？")) return;
+      history = [];
+      renderHistory();
+      renderMap(lastResult);
+      showToast("履歴を全削除しました");
+    }
+
+    function csvEscape(value) {
+      const text = String(value ?? "");
+      if (/[",\n\r]/.test(text)) return `"${text.replace(/"/g, '""')}"`;
+      return text;
+    }
+
+    function exportCsv() {
+      const headers = [
+        "name",
+        "color",
+        "icon",
+        "created_at",
+        "distance_m",
+        "depth_m",
+        "bearing_input_deg",
+        "bearing_mode",
+        "distance_type",
+        "bearing_from_base_deg",
+        "horizontal_distance_m",
+        "x_m",
+        "y_m",
+        "z_m",
+      ];
+
+      const rows = history.map((p) => [
+        p.name,
+        p.color,
+        p.icon,
+        p.createdAt,
+        csvNumber(p.distance),
+        csvNumber(p.depth),
+        csvNumber(p.bearingInput),
+        p.bearingMode,
+        p.distanceType,
+        csvNumber(p.bearingFromBase),
+        csvNumber(p.horizontalDistance),
+        csvNumber(p.x),
+        csvNumber(p.y),
+        csvNumber(p.z),
+      ]);
+
+      const csv = [headers, ...rows].map((row) => row.map(csvEscape).join(",")).join("\n");
+      const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+      a.href = url;
+      a.download = `ocean_mapping_history_${stamp}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      showToast("CSVを保存しました");
+    }
+
+    function parseCsv(text) {
+      const rows = [];
+      let row = [];
+      let cell = "";
+      let inQuotes = false;
+
+      for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        const next = text[i + 1];
+
+        if (char === '"') {
+          if (inQuotes && next === '"') {
+            cell += '"';
+            i++;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (char === "," && !inQuotes) {
+          row.push(cell);
+          cell = "";
+        } else if ((char === "\r" || char === "\n") && !inQuotes) {
+          if (char === "\r" && next === "\n") i++;
+          row.push(cell);
+          if (row.some((value) => value !== "")) rows.push(row);
+          row = [];
+          cell = "";
+        } else {
+          cell += char;
+        }
+      }
+
+      row.push(cell);
+      if (row.some((value) => value !== "")) rows.push(row);
+      return rows;
+    }
+
+    function importCsvFile(file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const text = String(reader.result || "").replace(/^\uFEFF/, "");
+          const rows = parseCsv(text);
+          if (rows.length < 2) throw new Error("CSVにデータ行がありません。");
+
+          const header = rows[0].map((h) => h.trim());
+          const indexOf = (name) => header.indexOf(name);
+          const required = ["name", "color", "icon", "created_at", "distance_m", "depth_m", "bearing_input_deg", "bearing_mode", "distance_type", "bearing_from_base_deg", "horizontal_distance_m", "x_m", "y_m", "z_m"];
+          const missing = required.filter((name) => indexOf(name) < 0);
+          if (missing.length) throw new Error(`CSV形式が一致しません。不足列: ${missing.join(", ")}`);
+
+          const imported = rows.slice(1).map((row) => {
+            const get = (name) => row[indexOf(name)] ?? "";
+            const num = (name) => Number(get(name));
+            const color = get("color") || "#43c6ff";
+            return {
+              id: makePointId(),
+              name: get("name") || nextPointName(),
+              color: /^#[0-9a-f]{6}$/i.test(color) ? color : "#43c6ff",
+              icon: get("icon") || "📍",
+              createdAt: get("created_at") || new Date().toISOString(),
+              distance: num("distance_m"),
+              depth: num("depth_m"),
+              bearingInput: num("bearing_input_deg"),
+              bearingMode: get("bearing_mode") || "toBase",
+              distanceType: get("distance_type") || "slant",
+              bearingFromBase: num("bearing_from_base_deg"),
+              horizontalDistance: num("horizontal_distance_m"),
+              x: num("x_m"),
+              y: num("y_m"),
+              z: num("z_m"),
+            };
+          }).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z));
+
+          if (!imported.length) throw new Error("読み込めるポイントがありませんでした。");
+
+          history = [...imported, ...history];
+          renderHistory();
+          renderMap(lastResult);
+          showToast(`${imported.length}件のポイントを読み込みました`);
+        } catch (error) {
+          showToast(error.message || "CSV読み込みに失敗しました");
+        } finally {
+          output.csvFile.value = "";
+        }
+      };
+      reader.onerror = () => showToast("CSVファイルを読み込めませんでした");
+      reader.readAsText(file, "utf-8");
+    }
+
+    function showToast(message) {
+      output.toast.textContent = message;
+      output.toast.classList.add("show");
+      window.setTimeout(() => output.toast.classList.remove("show"), 2000);
+    }
+
+    $("calcButton").addEventListener("click", () => calculate(true));
+    $("addPointButton").addEventListener("click", addPointToHistory);
+    $("copyButton").addEventListener("click", copyResult);
+    $("resetButton").addEventListener("click", resetForm);
+    $("fitMapButton").addEventListener("click", () => { resetMapView(); renderMap(lastResult); });
+    $("clearHistoryButton").addEventListener("click", clearHistory);
+    $("downloadCsvButton").addEventListener("click", exportCsv);
+    $("loadCsvButton").addEventListener("click", () => output.csvFile.click());
+    output.csvFile.addEventListener("change", () => {
+      const file = output.csvFile.files?.[0];
+      if (file) importCsvFile(file);
+    });
+
+    for (const element of document.querySelectorAll(".preset")) {
+      element.addEventListener("click", () => {
+        inputs.pointName.value = element.dataset.name;
+        inputs.pointIcon.value = element.dataset.icon;
+        inputs.distance.value = element.dataset.distance;
+        inputs.depth.value = element.dataset.depth;
+        inputs.bearing.value = element.dataset.bearing;
+        inputs.bearingMode.value = "toBase";
+        inputs.distanceType.value = "slant";
+        calculate(true);
+      });
+    }
+
+    for (const input of Object.values(inputs)) {
+      input.addEventListener("input", () => calculate(true));
+      input.addEventListener("change", () => calculate(true));
+    }
+
+    calculate(true);
+    renderHistory();
+  </script>
+</body>
+</html>
