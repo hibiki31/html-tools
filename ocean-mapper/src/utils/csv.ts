@@ -1,5 +1,11 @@
 import type { MapPoint } from '../types/point'
-import { makePointId, normalizeDegrees } from './coordinate'
+import { makePointId, normalizeDegrees, calculateCoordinate } from './coordinate'
+
+export interface CsvParseResult {
+  points: MapPoint[]
+  skippedCount: number
+  errors: string[]
+}
 
 function csvEscape(value: string | number): string {
   const text = String(value ?? '')
@@ -89,42 +95,128 @@ function parseCsvRows(text: string): string[][] {
   return rows
 }
 
-export function parsePointsCsv(csvText: string): MapPoint[] {
+const VALID_BEARING_MODES = new Set(['toBase', 'fromBase'])
+const VALID_DISTANCE_TYPES = new Set(['slant', 'horizontal'])
+
+export function parsePointsCsv(csvText: string): CsvParseResult {
   const text = csvText.replace(/^\uFEFF/, '')
   const rows = parseCsvRows(text)
-  if (rows.length < 2) throw new Error('CSVにデータ行がありません。')
+  if (rows.length < 2) {
+    return { points: [], skippedCount: 0, errors: ['CSVにデータ行がありません。'] }
+  }
 
   const header = rows[0].map((h) => h.trim())
   const indexOf = (name: string): number => header.indexOf(name)
 
   const required = [...CSV_HEADERS]
   const missing = required.filter((name) => indexOf(name) < 0)
-  if (missing.length) throw new Error(`CSV形式が一致しません。不足列: ${missing.join(', ')}`)
+  if (missing.length) {
+    return { points: [], skippedCount: 0, errors: [`CSV形式が一致しません。不足列: ${missing.join(', ')}`] }
+  }
 
-  return rows.slice(1).map((row): MapPoint | null => {
+  const points: MapPoint[] = []
+  const errors: string[] = []
+  let skippedCount = 0
+
+  rows.slice(1).forEach((row, rowIndex) => {
     const get = (name: string): string => row[indexOf(name)] ?? ''
     const num = (name: string): number => Number(get(name))
+    const rowNum = rowIndex + 2
 
-    const color = get('color') || '#43c6ff'
     const distance = num('distance_m')
     const depth = num('depth_m')
-    const bearingInput = normalizeDegrees(num('bearing_input_deg'))
-    const bearingMode = get('bearing_mode') as 'toBase' | 'fromBase'
-    const distanceType = get('distance_type') as 'slant' | 'horizontal'
+    const bearingInputRaw = num('bearing_input_deg')
+    const bearingMode = get('bearing_mode')
+    const distanceType = get('distance_type')
+
+    // Validate enum fields
+    if (!VALID_BEARING_MODES.has(bearingMode)) {
+      errors.push(`行${rowNum}: bearing_mode「${bearingMode}」が不正です。スキップします。`)
+      skippedCount++
+      return
+    }
+    if (!VALID_DISTANCE_TYPES.has(distanceType)) {
+      errors.push(`行${rowNum}: distance_type「${distanceType}」が不正です。スキップします。`)
+      skippedCount++
+      return
+    }
+
+    // Validate numeric fields
+    if (!Number.isFinite(distance) || distance < 0) {
+      errors.push(`行${rowNum}: 距離が不正（${get('distance_m')}）。スキップします。`)
+      skippedCount++
+      return
+    }
+    if (!Number.isFinite(depth) || depth < 0) {
+      errors.push(`行${rowNum}: 深度が不正（${get('depth_m')}）。スキップします。`)
+      skippedCount++
+      return
+    }
+    if (!Number.isFinite(bearingInputRaw)) {
+      errors.push(`行${rowNum}: 方角が不正（${get('bearing_input_deg')}）。スキップします。`)
+      skippedCount++
+      return
+    }
+
+    const typedBearingMode = bearingMode as 'toBase' | 'fromBase'
+    const typedDistanceType = distanceType as 'slant' | 'horizontal'
+
+    // Validate slant distance constraint
+    if (typedDistanceType === 'slant' && distance < depth) {
+      errors.push(`行${rowNum}: 斜距離(${distance})が深度(${depth})未満です。スキップします。`)
+      skippedCount++
+      return
+    }
+
+    const bearingInput = normalizeDegrees(bearingInputRaw)
     const x = num('x_m')
     const y = num('y_m')
     const z = num('z_m')
 
-    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) return null
+    // If x/y/z are missing or invalid, recalculate from input values
+    let finalX = x
+    let finalY = y
+    let finalZ = z
+    let bearingFromBase: number
+    let horizontalDistance: number
 
-    const bearingFromBase = bearingMode === 'toBase'
-      ? normalizeDegrees(bearingInput + 180)
-      : bearingInput
-    const horizontalDistance = distanceType === 'slant'
-      ? Math.sqrt(distance * distance - depth * depth)
-      : distance
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) {
+      const calcInput = {
+        distance,
+        depth,
+        bearingInput,
+        bearingMode: typedBearingMode,
+        distanceType: typedDistanceType,
+      }
+      const calcResult = calculateCoordinate(calcInput)
+      if (typeof calcResult === 'string') {
+        errors.push(`行${rowNum}: 座標再計算に失敗（${calcResult}）。スキップします。`)
+        skippedCount++
+        return
+      }
+      finalX = calcResult.x
+      finalY = calcResult.y
+      finalZ = calcResult.z
+      bearingFromBase = calcResult.bearingFromBase
+      horizontalDistance = calcResult.horizontalDistance
+    } else {
+      bearingFromBase = typedBearingMode === 'toBase'
+        ? normalizeDegrees(bearingInput + 180)
+        : bearingInput
+      horizontalDistance = typedDistanceType === 'slant'
+        ? Math.sqrt(distance * distance - depth * depth)
+        : distance
+    }
 
-    return {
+    // Use CSV values for bearingFromBase / horizontalDistance if available
+    const csvBearingFromBase = num('bearing_from_base_deg')
+    const csvHorizontalDistance = num('horizontal_distance_m')
+    if (Number.isFinite(csvBearingFromBase)) bearingFromBase = csvBearingFromBase
+    if (Number.isFinite(csvHorizontalDistance)) horizontalDistance = csvHorizontalDistance
+
+    const color = get('color') || '#43c6ff'
+
+    points.push({
       id: makePointId(),
       name: get('name') || 'Point',
       color: /^#[0-9a-f]{6}$/i.test(color) ? color : '#43c6ff',
@@ -133,17 +225,15 @@ export function parsePointsCsv(csvText: string): MapPoint[] {
       distance,
       depth,
       bearingInput,
-      bearingMode,
-      distanceType,
-      bearingFromBase: Number.isFinite(num('bearing_from_base_deg'))
-        ? num('bearing_from_base_deg')
-        : bearingFromBase,
-      horizontalDistance: Number.isFinite(num('horizontal_distance_m'))
-        ? num('horizontal_distance_m')
-        : horizontalDistance,
-      x,
-      y,
-      z,
-    }
-  }).filter((p): p is MapPoint => p !== null)
+      bearingMode: typedBearingMode,
+      distanceType: typedDistanceType,
+      bearingFromBase,
+      horizontalDistance,
+      x: finalX,
+      y: finalY,
+      z: finalZ,
+    })
+  })
+
+  return { points, skippedCount, errors }
 }

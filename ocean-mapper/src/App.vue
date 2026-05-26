@@ -12,6 +12,7 @@
       :history-length="points.length"
       @add-point="onAddPoint"
       @preview-update="onPreviewUpdate"
+      @copy-result="onCopyResult"
     />
 
     <MapCanvas
@@ -21,10 +22,12 @@
     />
 
     <PointTable
+      ref="tableRef"
       :points="points"
       @delete-point="onDeletePoint"
       @download-csv="onDownloadCsv"
       @load-csv="onLoadCsv"
+      @csv-loaded="onCsvLoaded"
     />
   </main>
 
@@ -39,7 +42,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref } from 'vue'
 import type { MapPoint } from './types/point'
 import { COLOR_PALETTE } from './types/point'
 import { makePointId } from './utils/coordinate'
@@ -54,13 +57,16 @@ const toastMessage = ref('')
 const toastVisible = ref(false)
 let toastTimer: ReturnType<typeof setTimeout> | null = null
 
+// Ref to PointTable component for triggering file input
+const tableRef = ref<InstanceType<typeof PointTable> | null>(null)
+
 function showToast(message: string): void {
   toastMessage.value = message
   toastVisible.value = true
   if (toastTimer) clearTimeout(toastTimer)
   toastTimer = setTimeout(() => {
     toastVisible.value = false
-  }, 2000)
+  }, 2500)
 }
 
 function onPreviewUpdate(point: MapPoint | null): void {
@@ -100,35 +106,32 @@ function onDownloadCsv(): void {
 }
 
 function onLoadCsv(): void {
-  // Trigger the file input in PointTable via custom event
-  const tableComponent = document.querySelector('.file-input') as HTMLInputElement | null
-  if (tableComponent) {
-    tableComponent.click()
-  }
+  tableRef.value?.triggerFileInput?.()
 }
 
-function handleCsvLoaded(event: Event): void {
-  const customEvent = event as CustomEvent
-  const text = customEvent.detail as string
+function onCsvLoaded(text: string): void {
   if (!text) {
     showToast('CSVファイルを読み込めませんでした')
     return
   }
-  try {
-    const imported = parsePointsCsv(text)
-    if (imported.length === 0) throw new Error('読み込めるポイントがありませんでした。')
-    points.value = [...imported, ...points.value]
-    showToast(`${imported.length}件のポイントを読み込みました`)
-  } catch (err) {
-    showToast(err instanceof Error ? err.message : 'CSV読み込みに失敗しました')
+  const result = parsePointsCsv(text)
+  if (result.errors.length > 0 && result.points.length === 0) {
+    showToast(result.errors[0])
+    return
   }
+  if (result.points.length === 0) {
+    showToast('読み込めるポイントがありませんでした')
+    return
+  }
+  points.value = [...result.points, ...points.value]
+  let msg = `${result.points.length}件のポイントを読み込みました`
+  if (result.skippedCount > 0) {
+    msg += `（${result.skippedCount}件スキップ）`
+  }
+  showToast(msg)
 }
 
-onMounted(() => {
-  window.addEventListener('csv-file-loaded', handleCsvLoaded)
-})
-
-onUnmounted(() => {
-  window.removeEventListener('csv-file-loaded', handleCsvLoaded)
-})
+function onCopyResult(success: boolean): void {
+  showToast(success ? '結果をコピーしました' : 'コピーに失敗しました')
+}
 </script>

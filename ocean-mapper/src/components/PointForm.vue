@@ -175,6 +175,7 @@ import {
 const emit = defineEmits<{
   (event: 'add-point', point: MapPoint | null): void
   (event: 'preview-update', point: MapPoint | null): void
+  (event: 'copy-result', success: boolean): void
 }>()
 
 const props = defineProps<{
@@ -347,9 +348,9 @@ async function copyResult(): Promise<void> {
 
   try {
     await navigator.clipboard.writeText(text)
-    emit('preview-update', preview.value)
+    emit('copy-result', true)
   } catch {
-    // fallback: silent
+    emit('copy-result', false)
   }
 }
 

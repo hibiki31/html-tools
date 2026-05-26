@@ -61,5 +61,8 @@ export function directionText(x: number, y: number, z: number): string {
 }
 
 export function makePointId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
   return `p_${Date.now()}_${Math.random().toString(16).slice(2)}`
 }

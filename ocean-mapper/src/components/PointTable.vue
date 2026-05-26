@@ -74,10 +74,11 @@ defineProps<{
   points: MapPoint[]
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   'delete-point': [index: number]
   'download-csv': []
   'load-csv': []
+  'csv-loaded': [text: string]
 }>()
 
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -88,6 +89,10 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleString('ja-JP')
 }
 
+function triggerFileInput(): void {
+  fileInput.value?.click()
+}
+
 function onFileChange(event: Event): void {
   const target = event.target as HTMLInputElement
   const file = target.files?.[0]
@@ -95,19 +100,14 @@ function onFileChange(event: Event): void {
     const reader = new FileReader()
     reader.onload = () => {
       const text = String(reader.result || '')
-      // Emit a custom event with the file text
-      window.dispatchEvent(new CustomEvent('csv-file-loaded', { detail: text }))
+      emit('csv-loaded', text)
     }
     reader.onerror = () => {
-      window.dispatchEvent(new CustomEvent('csv-file-loaded', { detail: '' }))
+      emit('csv-loaded', '')
     }
     reader.readAsText(file, 'utf-8')
     target.value = ''
   }
-}
-
-function triggerFileInput(): void {
-  fileInput.value?.click()
 }
 
 defineExpose({ triggerFileInput })
