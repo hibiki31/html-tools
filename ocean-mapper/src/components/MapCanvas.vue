@@ -43,12 +43,12 @@
             />
             <template v-if="isLabel(val) && val !== 0">
               <text
-                :x="sx(val)" :y="originY + 12"
-                fill="rgba(159,193,217,0.55)" font-size="6.5" text-anchor="middle"
+                :x="sx(val)" :y="originY + 12 * z"
+                fill="rgba(159,193,217,0.55)" :font-size="6.5 * z" text-anchor="middle"
               >{{ val }}</text>
               <text
-                :x="originX - 4" :y="sy(val)"
-                fill="rgba(159,193,217,0.55)" font-size="6.5" text-anchor="end" dominant-baseline="middle"
+                :x="originX - 4 * z" :y="sy(val)"
+                fill="rgba(159,193,217,0.55)" :font-size="6.5 * z" text-anchor="end" dominant-baseline="middle"
               >{{ val }}</text>
             </template>
           </template>
@@ -57,34 +57,34 @@
           <line
             :x1="originX" :y1="margin - 10"
             :x2="originX" :y2="MAP_H - margin + 10"
-            stroke="rgba(105,240,174,0.45)" stroke-width="1.5"
+            stroke="rgba(105,240,174,0.45)" :stroke-width="1.5 * z"
           />
           <line
             :x1="margin - 10" :y1="originY"
             :x2="MAP_W - margin + 10" :y2="originY"
-            stroke="rgba(67,198,255,0.45)" stroke-width="1.5"
+            stroke="rgba(67,198,255,0.45)" :stroke-width="1.5 * z"
           />
 
           <!-- Direction labels -->
-          <text :x="originX" :y="margin - 14" fill="#b8ffcf" text-anchor="middle" font-size="8" font-weight="700">北 / y+</text>
-          <text :x="originX" :y="MAP_H - margin + 24" fill="#b8ffcf" text-anchor="middle" font-size="8" font-weight="700">南 / y-</text>
-          <text :x="MAP_W - margin + 24" :y="originY + 3" fill="#8be9fd" text-anchor="middle" font-size="8" font-weight="700">東 / x+</text>
-          <text :x="margin - 24" :y="originY + 3" fill="#8be9fd" text-anchor="middle" font-size="8" font-weight="700">西 / x-</text>
+          <text :x="originX" :y="margin - 14 * z" fill="#b8ffcf" text-anchor="middle" :font-size="8 * z" font-weight="700">北 / y+</text>
+          <text :x="originX" :y="MAP_H - margin + 24 * z" fill="#b8ffcf" text-anchor="middle" :font-size="8 * z" font-weight="700">南 / y-</text>
+          <text :x="MAP_W - margin + 24 * z" :y="originY + 3 * z" fill="#8be9fd" text-anchor="middle" :font-size="8 * z" font-weight="700">東 / x+</text>
+          <text :x="margin - 24 * z" :y="originY + 3 * z" fill="#8be9fd" text-anchor="middle" :font-size="8 * z" font-weight="700">西 / x-</text>
 
           <!-- Origin point -->
-          <circle :cx="originX" :cy="originY" r="4" fill="#ffffff" />
-          <text :x="originX + 6" :y="originY - 6" fill="#ffffff" font-size="7.5" font-weight="700">基準点</text>
+          <circle :cx="originX" :cy="originY" :r="4 * z" fill="#ffffff" />
+          <text :x="originX + 6 * z" :y="originY - 6 * z" fill="#ffffff" :font-size="7.5 * z" font-weight="700">基準点</text>
 
           <!-- Preview point (dashed) -->
           <template v-if="previewPoint">
             <g :opacity="0.62">
               <text
-                :x="sx(previewPoint.x)" :y="sy(previewPoint.y) + 3"
-                text-anchor="middle" dominant-baseline="middle" font-size="10"
+                :x="sx(previewPoint.x)" :y="sy(previewPoint.y) + 3 * z"
+                text-anchor="middle" dominant-baseline="middle" :font-size="10 * z"
               >{{ previewPoint.icon }}</text>
               <text
-                :x="sx(previewPoint.x) + 9" :y="sy(previewPoint.y) + 3"
-                fill="#eef7ff" font-size="7.5" font-weight="700" dominant-baseline="middle"
+                :x="sx(previewPoint.x) + 9 * z" :y="sy(previewPoint.y) + 3 * z"
+                fill="#eef7ff" :font-size="7.5 * z" font-weight="700" dominant-baseline="middle"
               >{{ previewPoint.name }} [preview]</text>
             </g>
           </template>
@@ -92,12 +92,12 @@
           <!-- History points -->
           <g v-for="p in points" :key="p.id">
             <text
-              :x="sx(p.x)" :y="sy(p.y) + 3"
-              text-anchor="middle" dominant-baseline="middle" font-size="10"
+              :x="sx(p.x)" :y="sy(p.y) + 3 * z"
+              text-anchor="middle" dominant-baseline="middle" :font-size="10 * z"
             >{{ p.icon }}</text>
             <text
-              :x="sx(p.x) + 9" :y="sy(p.y) + 3"
-              fill="#eef7ff" font-size="7.5" font-weight="700" dominant-baseline="middle"
+              :x="sx(p.x) + 9 * z" :y="sy(p.y) + 3 * z"
+              fill="#eef7ff" :font-size="7.5 * z" font-weight="700" dominant-baseline="middle"
             >{{ p.name }}</text>
           </g>
         </svg>
@@ -189,10 +189,15 @@ function gridStrokeColor(val: number): string {
 }
 
 function gridStrokeWidth(val: number): number {
-  if (isOrigin(val)) return 1.5
-  if (isMajor(val)) return 0.7
-  return 0.3
+  const z = zoomRatio.value
+  if (isOrigin(val)) return 1.5 * z
+  if (isMajor(val)) return 0.7 * z
+  return 0.3 * z
 }
+
+// Zoom ratio: scales down SVG element sizes when zoomed in so they stay visually constant
+const zoomRatio = computed(() => mapView.value.w / MAP_W)
+const z = computed(() => zoomRatio.value)
 
 const mapMeta = computed(() => {
   return `表示範囲：±${formatNumber(axisMax.value, 0)} m　ポイント：${props.points.length}　細線：${minorStep} m / 太線：${majorStep} m / ラベル：${labelStep} m　ホイール/ドラッグで操作`
