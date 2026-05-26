@@ -173,9 +173,9 @@ import {
 } from '../utils/coordinate'
 
 const emit = defineEmits<{
-  'add-point': [point: MapPoint | null]
-  'preview-update': [point: MapPoint | null]
-}>
+  (event: 'add-point', point: MapPoint | null): void
+  (event: 'preview-update', point: MapPoint | null): void
+}>()
 
 const props = defineProps<{
   historyLength: number
