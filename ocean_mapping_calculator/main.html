@@ -1058,8 +1058,8 @@
         grid.push(`<line x1="${x.toFixed(2)}" y1="${margin}" x2="${x.toFixed(2)}" y2="${height - margin}" stroke="${major ? "rgba(255,255,255,0.32)" : "rgba(255,255,255,0.07)"}" stroke-width="${major ? 1.5 : 0.8}" />`);
         grid.push(`<line x1="${margin}" y1="${y.toFixed(2)}" x2="${width - margin}" y2="${y.toFixed(2)}" stroke="${major ? "rgba(255,255,255,0.32)" : "rgba(255,255,255,0.07)"}" stroke-width="${major ? 1.5 : 0.8}" />`);
         if (!major) {
-          grid.push(`<text x="${x.toFixed(2)}" y="${originY + 14}" fill="rgba(159,193,217,0.65)" font-size="8.5" text-anchor="middle">${formatNumber(value, 0)}</text>`);
-          grid.push(`<text x="${originX - 5}" y="${y.toFixed(2)}" fill="rgba(159,193,217,0.65)" font-size="8.5" text-anchor="end" dominant-baseline="middle">${formatNumber(value, 0)}</text>`);
+          grid.push(`<text x="${x.toFixed(2)}" y="${originY + 12}" fill="rgba(159,193,217,0.55)" font-size="6.5" text-anchor="middle">${formatNumber(value, 0)}</text>`);
+          grid.push(`<text x="${originX - 4}" y="${y.toFixed(2)}" fill="rgba(159,193,217,0.55)" font-size="6.5" text-anchor="end" dominant-baseline="middle">${formatNumber(value, 0)}</text>`);
         }
       }
 
@@ -1071,8 +1071,8 @@
         const safeColor = /^#[0-9a-f]{6}$/i.test(p.color) ? p.color : "#43c6ff";
         return `
           <g opacity="${opacity}">
-            <text x="${x.toFixed(2)}" y="${(y + 4).toFixed(2)}" text-anchor="middle" dominant-baseline="middle" font-size="14">${escapeHtml(p.icon)}</text>
-            <text x="${(x + 12).toFixed(2)}" y="${(y + 4).toFixed(2)}" fill="#eef7ff" font-size="10" font-weight="700" dominant-baseline="middle">${escapeHtml(p.name)}${p.preview ? " [preview]" : ""}</text>
+            <text x="${x.toFixed(2)}" y="${(y + 3).toFixed(2)}" text-anchor="middle" dominant-baseline="middle" font-size="10">${escapeHtml(p.icon)}</text>
+            <text x="${(x + 9).toFixed(2)}" y="${(y + 3).toFixed(2)}" fill="#eef7ff" font-size="7.5" font-weight="700" dominant-baseline="middle">${escapeHtml(p.name)}${p.preview ? " [preview]" : ""}</text>
           </g>
         `;
       }).join("");
@@ -1082,12 +1082,12 @@
         ${grid.join("\n")}
         <line x1="${originX}" y1="${margin - 10}" x2="${originX}" y2="${height - margin + 10}" stroke="rgba(105,240,174,0.45)" stroke-width="1.5" />
         <line x1="${margin - 10}" y1="${originY}" x2="${width - margin + 10}" y2="${originY}" stroke="rgba(67,198,255,0.45)" stroke-width="1.5" />
-        <text x="${originX}" y="${margin - 18}" fill="#b8ffcf" text-anchor="middle" font-size="11" font-weight="700">北 / y+</text>
-        <text x="${originX}" y="${height - margin + 30}" fill="#b8ffcf" text-anchor="middle" font-size="11" font-weight="700">南 / y-</text>
-        <text x="${width - margin + 28}" y="${originY + 4}" fill="#8be9fd" text-anchor="middle" font-size="11" font-weight="700">東 / x+</text>
-        <text x="${margin - 28}" y="${originY + 4}" fill="#8be9fd" text-anchor="middle" font-size="11" font-weight="700">西 / x-</text>
-        <circle cx="${originX}" cy="${originY}" r="5" fill="#ffffff" />
-        <text x="${originX + 8}" y="${originY - 8}" fill="#ffffff" font-size="10" font-weight="700">基準点</text>
+        <text x="${originX}" y="${margin - 14}" fill="#b8ffcf" text-anchor="middle" font-size="8" font-weight="700">北 / y+</text>
+        <text x="${originX}" y="${height - margin + 24}" fill="#b8ffcf" text-anchor="middle" font-size="8" font-weight="700">南 / y-</text>
+        <text x="${width - margin + 24}" y="${originY + 3}" fill="#8be9fd" text-anchor="middle" font-size="8" font-weight="700">東 / x+</text>
+        <text x="${margin - 24}" y="${originY + 3}" fill="#8be9fd" text-anchor="middle" font-size="8" font-weight="700">西 / x-</text>
+        <circle cx="${originX}" cy="${originY}" r="4" fill="#ffffff" />
+        <text x="${originX + 6}" y="${originY - 6}" fill="#ffffff" font-size="7.5" font-weight="700">基準点</text>
         ${pointShapes}
       `;
 
