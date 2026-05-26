@@ -1,0 +1,723 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>海洋マッピング座標計算ツール</title>
+  <style>
+    :root {
+      --bg: #071827;
+      --panel: #10263a;
+      --panel-2: #14324d;
+      --text: #eef7ff;
+      --muted: #9fc1d9;
+      --accent: #43c6ff;
+      --accent-2: #69f0ae;
+      --danger: #ff6b6b;
+      --warning: #ffd166;
+      --border: rgba(255, 255, 255, 0.13);
+      --shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+      --radius: 18px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: var(--sans);
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(67, 198, 255, 0.24), transparent 35%),
+        radial-gradient(circle at bottom right, rgba(105, 240, 174, 0.13), transparent 30%),
+        linear-gradient(135deg, #06121d, var(--bg));
+      min-height: 100vh;
+    }
+
+    header {
+      padding: 36px 20px 18px;
+      text-align: center;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: clamp(1.8rem, 4vw, 3.2rem);
+      letter-spacing: 0.03em;
+    }
+
+    header p {
+      margin: 12px auto 0;
+      max-width: 820px;
+      color: var(--muted);
+      line-height: 1.8;
+    }
+
+    main {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto 48px;
+      display: grid;
+      grid-template-columns: 1fr 1.2fr;
+      gap: 20px;
+    }
+
+    .card {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.035));
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      border-radius: var(--radius);
+      backdrop-filter: blur(14px);
+      overflow: hidden;
+    }
+
+    .card h2 {
+      margin: 0;
+      padding: 18px 20px;
+      font-size: 1.05rem;
+      background: rgba(255, 255, 255, 0.055);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .card-body {
+      padding: 20px;
+    }
+
+    .form-grid {
+      display: grid;
+      gap: 16px;
+    }
+
+    label {
+      display: grid;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    input, select {
+      width: 100%;
+      border: 1px solid var(--border);
+      background: rgba(5, 18, 30, 0.78);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 13px 14px;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    input:focus, select:focus {
+      border-color: rgba(67, 198, 255, 0.85);
+      box-shadow: 0 0 0 4px rgba(67, 198, 255, 0.13);
+    }
+
+    .hint {
+      margin-top: -8px;
+      color: var(--muted);
+      font-size: 0.84rem;
+      line-height: 1.55;
+    }
+
+    .button-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 6px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 999px;
+      padding: 12px 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.12s ease, filter 0.12s ease, background 0.12s ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.07);
+    }
+
+    .primary {
+      background: linear-gradient(135deg, var(--accent), #4f8cff);
+      color: #04111d;
+    }
+
+    .secondary {
+      background: rgba(255, 255, 255, 0.11);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .preset-row {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .preset {
+      text-align: left;
+      background: rgba(67, 198, 255, 0.1);
+      color: var(--text);
+      border: 1px solid rgba(67, 198, 255, 0.22);
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-weight: 600;
+    }
+
+    .results {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .metric {
+      background: rgba(4, 17, 29, 0.58);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      min-height: 116px;
+      display: grid;
+      align-content: center;
+      gap: 8px;
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    .metric strong {
+      font-family: var(--mono);
+      font-size: clamp(1.35rem, 3vw, 2rem);
+      line-height: 1.1;
+    }
+
+    .east { color: #8be9fd; }
+    .north { color: #b8ffcf; }
+    .depth { color: #ffdd8a; }
+
+    .summary {
+      background: rgba(105, 240, 174, 0.1);
+      border: 1px solid rgba(105, 240, 174, 0.22);
+      color: #dbffe9;
+      border-radius: 16px;
+      padding: 16px;
+      line-height: 1.8;
+      margin-bottom: 18px;
+    }
+
+    .summary.error {
+      background: rgba(255, 107, 107, 0.12);
+      border-color: rgba(255, 107, 107, 0.3);
+      color: #ffd5d5;
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 240px;
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .steps {
+      background: rgba(4, 17, 29, 0.48);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      font-family: var(--mono);
+      color: #d7efff;
+      line-height: 1.75;
+      white-space: pre-wrap;
+      overflow-x: auto;
+    }
+
+    .compass-box {
+      display: grid;
+      place-items: center;
+      background: rgba(4, 17, 29, 0.48);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      min-height: 240px;
+      padding: 12px;
+    }
+
+    svg {
+      width: 100%;
+      max-width: 220px;
+      height: auto;
+    }
+
+    .history {
+      grid-column: 1 / -1;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.92rem;
+    }
+
+    th, td {
+      padding: 12px 10px;
+      border-bottom: 1px solid var(--border);
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    th:first-child, td:first-child {
+      text-align: left;
+    }
+
+    th {
+      color: var(--muted);
+      font-weight: 700;
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    footer {
+      width: min(1180px, calc(100% - 32px));
+      margin: -24px auto 48px;
+      color: var(--muted);
+      line-height: 1.7;
+      font-size: 0.9rem;
+    }
+
+    code {
+      font-family: var(--mono);
+      color: #d7efff;
+    }
+
+    .toast {
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      background: rgba(4, 17, 29, 0.94);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 12px 14px;
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      transform: translateY(140%);
+      transition: transform 0.2s ease;
+      z-index: 20;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+    }
+
+    @media (max-width: 920px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+
+      .results {
+        grid-template-columns: 1fr;
+      }
+
+      .detail-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>海洋マッピング座標計算ツール</h1>
+    <p>
+      基準点を <code>(0, 0, 0)</code> とし、xを東西方向、yを南北方向、zを深度方向として計算します。
+      方角は <code>0°=北 / 90°=東 / 180°=南 / 270°=西</code> です。
+    </p>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>入力</h2>
+      <div class="card-body">
+        <div class="form-grid">
+          <label>
+            距離 [m]
+            <input id="distance" type="number" inputmode="decimal" min="0" step="0.01" value="1291" />
+          </label>
+
+          <label>
+            深度 [m]
+            <input id="depth" type="number" inputmode="decimal" min="0" step="0.01" value="128" />
+          </label>
+
+          <label>
+            方角 [°]
+            <input id="bearing" type="number" inputmode="decimal" min="0" max="360" step="0.01" value="268" />
+          </label>
+
+          <label>
+            方角の意味
+            <select id="bearingMode">
+              <option value="toBase" selected>マッピング地点から基準点への方角</option>
+              <option value="fromBase">基準点からマッピング地点への方角</option>
+            </select>
+          </label>
+
+          <label>
+            距離の種類
+            <select id="distanceType">
+              <option value="slant" selected>斜距離：深度を使って水平距離を計算</option>
+              <option value="horizontal">水平距離：距離をそのまま水平距離として使う</option>
+            </select>
+          </label>
+
+          <p class="hint">
+            通常、ソナー・ケーブル長・直線距離なら「斜距離」、地図上の平面距離なら「水平距離」を選んでください。
+          </p>
+
+          <div class="button-row">
+            <button class="primary" id="calcButton">計算する</button>
+            <button class="secondary" id="copyButton">結果をコピー</button>
+            <button class="secondary" id="resetButton">リセット</button>
+          </div>
+        </div>
+
+        <div class="preset-row" aria-label="サンプル入力">
+          <button class="preset" data-distance="1400" data-depth="178" data-bearing="275">例1：距離1400m / 深度178m / 西 275°</button>
+          <button class="preset" data-distance="1291" data-depth="128" data-bearing="268">例2：距離1291m / 深度128m / 西 268°</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>計算結果</h2>
+      <div class="card-body">
+        <div id="summary" class="summary">入力値をもとに計算します。</div>
+
+        <div class="results">
+          <div class="metric">
+            <span>x：東西方向</span>
+            <strong id="xValue" class="east">--</strong>
+          </div>
+          <div class="metric">
+            <span>y：南北方向</span>
+            <strong id="yValue" class="north">--</strong>
+          </div>
+          <div class="metric">
+            <span>z：深度方向</span>
+            <strong id="zValue" class="depth">--</strong>
+          </div>
+        </div>
+
+        <div class="detail-grid">
+          <pre id="steps" class="steps">ここに計算式を表示します。</pre>
+          <div class="compass-box">
+            <svg viewBox="0 0 220 220" role="img" aria-label="方角表示">
+              <defs>
+                <marker id="arrow" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto-start-reverse">
+                  <path d="M 0 0 L 8 4 L 0 8 z" fill="#43c6ff"></path>
+                </marker>
+              </defs>
+              <circle cx="110" cy="110" r="88" fill="rgba(255,255,255,0.035)" stroke="rgba(255,255,255,0.18)" stroke-width="2"></circle>
+              <line x1="110" y1="18" x2="110" y2="202" stroke="rgba(255,255,255,0.15)"></line>
+              <line x1="18" y1="110" x2="202" y2="110" stroke="rgba(255,255,255,0.15)"></line>
+              <text x="110" y="15" text-anchor="middle" fill="#9fc1d9" font-size="14">N</text>
+              <text x="110" y="215" text-anchor="middle" fill="#9fc1d9" font-size="14">S</text>
+              <text x="207" y="115" text-anchor="middle" fill="#9fc1d9" font-size="14">E</text>
+              <text x="13" y="115" text-anchor="middle" fill="#9fc1d9" font-size="14">W</text>
+              <line id="bearingArrow" x1="110" y1="110" x2="110" y2="40" stroke="#43c6ff" stroke-width="5" stroke-linecap="round" marker-end="url(#arrow)"></line>
+              <circle cx="110" cy="110" r="5" fill="#69f0ae"></circle>
+              <text id="bearingLabel" x="110" y="136" text-anchor="middle" fill="#eef7ff" font-size="13" font-family="ui-monospace, monospace">--°</text>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card history">
+      <h2>計算履歴</h2>
+      <div class="card-body table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>時刻</th>
+              <th>距離</th>
+              <th>深度</th>
+              <th>入力方角</th>
+              <th>基準点からの方角</th>
+              <th>水平距離</th>
+              <th>x</th>
+              <th>y</th>
+              <th>z</th>
+            </tr>
+          </thead>
+          <tbody id="historyBody">
+            <tr><td colspan="9" style="text-align:left;color:var(--muted);">まだ履歴はありません。</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>
+      座標系：<code>x+</code> は東、<code>x-</code> は西、<code>y+</code> は北、<code>y-</code> は南、<code>z</code> は海面を0mとして深度を負の値で表示します。
+      このHTMLは単一ファイルで動作し、外部ライブラリは使用していません。
+    </p>
+  </footer>
+
+  <div id="toast" class="toast">コピーしました</div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    const inputs = {
+      distance: $("distance"),
+      depth: $("depth"),
+      bearing: $("bearing"),
+      bearingMode: $("bearingMode"),
+      distanceType: $("distanceType"),
+    };
+
+    const output = {
+      summary: $("summary"),
+      xValue: $("xValue"),
+      yValue: $("yValue"),
+      zValue: $("zValue"),
+      steps: $("steps"),
+      bearingArrow: $("bearingArrow"),
+      bearingLabel: $("bearingLabel"),
+      historyBody: $("historyBody"),
+      toast: $("toast"),
+    };
+
+    let lastResultText = "";
+    let history = [];
+
+    function normalizeDegrees(deg) {
+      return ((deg % 360) + 360) % 360;
+    }
+
+    function formatNumber(value, digits = 2) {
+      if (!Number.isFinite(value)) return "--";
+      return value.toLocaleString("ja-JP", {
+        minimumFractionDigits: digits,
+        maximumFractionDigits: digits,
+      });
+    }
+
+    function directionText(x, y, z) {
+      const eastWest = x >= 0 ? `東へ 約${formatNumber(Math.abs(x), 1)} m` : `西へ 約${formatNumber(Math.abs(x), 1)} m`;
+      const northSouth = y >= 0 ? `北へ 約${formatNumber(Math.abs(y), 1)} m` : `南へ 約${formatNumber(Math.abs(y), 1)} m`;
+      const depth = `深さ ${formatNumber(Math.abs(z), 1)} m`;
+      return `${eastWest}、${northSouth}、${depth}`;
+    }
+
+    function setError(message) {
+      output.summary.classList.add("error");
+      output.summary.textContent = message;
+      output.xValue.textContent = "--";
+      output.yValue.textContent = "--";
+      output.zValue.textContent = "--";
+      output.steps.textContent = "入力値を確認してください。";
+      lastResultText = "";
+    }
+
+    function calculate(addHistory = true) {
+      const distance = Number(inputs.distance.value);
+      const depth = Number(inputs.depth.value);
+      const bearingInput = Number(inputs.bearing.value);
+      const bearingMode = inputs.bearingMode.value;
+      const distanceType = inputs.distanceType.value;
+
+      if (!Number.isFinite(distance) || distance < 0) {
+        setError("距離は0以上の数値で入力してください。");
+        return null;
+      }
+      if (!Number.isFinite(depth) || depth < 0) {
+        setError("深度は0以上の数値で入力してください。");
+        return null;
+      }
+      if (!Number.isFinite(bearingInput)) {
+        setError("方角は数値で入力してください。例：西向きなら270°付近です。");
+        return null;
+      }
+      if (distanceType === "slant" && distance < depth) {
+        setError("斜距離は深度以上である必要があります。距離の種類を確認してください。");
+        return null;
+      }
+
+      const bearingNormalized = normalizeDegrees(bearingInput);
+      const bearingFromBase = bearingMode === "toBase"
+        ? normalizeDegrees(bearingNormalized + 180)
+        : bearingNormalized;
+
+      const horizontalDistance = distanceType === "slant"
+        ? Math.sqrt(distance * distance - depth * depth)
+        : distance;
+
+      const rad = bearingFromBase * Math.PI / 180;
+      const x = horizontalDistance * Math.sin(rad);
+      const y = horizontalDistance * Math.cos(rad);
+      const z = -depth;
+
+      output.summary.classList.remove("error");
+      output.summary.innerHTML = `基準点から見て、<strong>${directionText(x, y, z)}</strong> の位置です。`;
+      output.xValue.textContent = `${formatNumber(x)} m`;
+      output.yValue.textContent = `${formatNumber(y)} m`;
+      output.zValue.textContent = `${formatNumber(z)} m`;
+
+      const distanceKindText = distanceType === "slant" ? "斜距離" : "水平距離";
+      const bearingModeText = bearingMode === "toBase"
+        ? "マッピング地点から基準点への方角"
+        : "基準点からマッピング地点への方角";
+
+      output.steps.textContent = [
+        `入力距離 = ${formatNumber(distance)} m (${distanceKindText})`,
+        `深度 = ${formatNumber(depth)} m`,
+        `入力方角 = ${formatNumber(bearingNormalized)}° (${bearingModeText})`,
+        bearingMode === "toBase"
+          ? `基準点から対象地点への方角 = (${formatNumber(bearingNormalized)} + 180) mod 360 = ${formatNumber(bearingFromBase)}°`
+          : `基準点から対象地点への方角 = ${formatNumber(bearingFromBase)}°`,
+        distanceType === "slant"
+          ? `水平距離 = √(${formatNumber(distance)}² - ${formatNumber(depth)}²) = ${formatNumber(horizontalDistance)} m`
+          : `水平距離 = ${formatNumber(horizontalDistance)} m`,
+        `x = 水平距離 × sin(${formatNumber(bearingFromBase)}°) = ${formatNumber(x)} m`,
+        `y = 水平距離 × cos(${formatNumber(bearingFromBase)}°) = ${formatNumber(y)} m`,
+        `z = -深度 = ${formatNumber(z)} m`,
+      ].join("\n");
+
+      updateCompass(bearingFromBase);
+
+      lastResultText = [
+        "海洋マッピング座標計算結果",
+        `距離: ${formatNumber(distance)} m (${distanceKindText})`,
+        `深度: ${formatNumber(depth)} m`,
+        `入力方角: ${formatNumber(bearingNormalized)}°`,
+        `基準点から対象地点への方角: ${formatNumber(bearingFromBase)}°`,
+        `水平距離: ${formatNumber(horizontalDistance)} m`,
+        `x: ${formatNumber(x)} m`,
+        `y: ${formatNumber(y)} m`,
+        `z: ${formatNumber(z)} m`,
+        directionText(x, y, z),
+      ].join("\n");
+
+      const result = {
+        time: new Date(),
+        distance,
+        depth,
+        bearingInput: bearingNormalized,
+        bearingFromBase,
+        horizontalDistance,
+        x,
+        y,
+        z,
+      };
+
+      if (addHistory) {
+        history.unshift(result);
+        history = history.slice(0, 20);
+        renderHistory();
+      }
+
+      return result;
+    }
+
+    function updateCompass(bearingFromBase) {
+      const rad = bearingFromBase * Math.PI / 180;
+      const cx = 110;
+      const cy = 110;
+      const length = 70;
+      const x2 = cx + length * Math.sin(rad);
+      const y2 = cy - length * Math.cos(rad);
+      output.bearingArrow.setAttribute("x1", cx);
+      output.bearingArrow.setAttribute("y1", cy);
+      output.bearingArrow.setAttribute("x2", x2.toFixed(2));
+      output.bearingArrow.setAttribute("y2", y2.toFixed(2));
+      output.bearingLabel.textContent = `${formatNumber(bearingFromBase)}°`;
+    }
+
+    function renderHistory() {
+      if (history.length === 0) {
+        output.historyBody.innerHTML = `<tr><td colspan="9" style="text-align:left;color:var(--muted);">まだ履歴はありません。</td></tr>`;
+        return;
+      }
+
+      output.historyBody.innerHTML = history.map((row) => `
+        <tr>
+          <td>${row.time.toLocaleTimeString("ja-JP")}</td>
+          <td>${formatNumber(row.distance)} m</td>
+          <td>${formatNumber(row.depth)} m</td>
+          <td>${formatNumber(row.bearingInput)}°</td>
+          <td>${formatNumber(row.bearingFromBase)}°</td>
+          <td>${formatNumber(row.horizontalDistance)} m</td>
+          <td>${formatNumber(row.x)} m</td>
+          <td>${formatNumber(row.y)} m</td>
+          <td>${formatNumber(row.z)} m</td>
+        </tr>
+      `).join("");
+    }
+
+    async function copyResult() {
+      if (!lastResultText) calculate(false);
+      if (!lastResultText) return;
+
+      try {
+        await navigator.clipboard.writeText(lastResultText);
+        showToast("結果をコピーしました");
+      } catch (error) {
+        showToast("コピーに失敗しました。ブラウザの権限を確認してください。", true);
+      }
+    }
+
+    function showToast(message) {
+      output.toast.textContent = message;
+      output.toast.classList.add("show");
+      window.setTimeout(() => output.toast.classList.remove("show"), 1800);
+    }
+
+    function resetForm() {
+      inputs.distance.value = "";
+      inputs.depth.value = "";
+      inputs.bearing.value = "";
+      inputs.bearingMode.value = "toBase";
+      inputs.distanceType.value = "slant";
+      output.summary.classList.remove("error");
+      output.summary.textContent = "入力値をもとに計算します。";
+      output.xValue.textContent = "--";
+      output.yValue.textContent = "--";
+      output.zValue.textContent = "--";
+      output.steps.textContent = "ここに計算式を表示します。";
+      updateCompass(0);
+      lastResultText = "";
+    }
+
+    $("calcButton").addEventListener("click", () => calculate(true));
+    $("copyButton").addEventListener("click", copyResult);
+    $("resetButton").addEventListener("click", resetForm);
+
+    for (const element of document.querySelectorAll(".preset")) {
+      element.addEventListener("click", () => {
+        inputs.distance.value = element.dataset.distance;
+        inputs.depth.value = element.dataset.depth;
+        inputs.bearing.value = element.dataset.bearing;
+        inputs.bearingMode.value = "toBase";
+        inputs.distanceType.value = "slant";
+        calculate(true);
+      });
+    }
+
+    for (const input of Object.values(inputs)) {
+      input.addEventListener("input", () => calculate(false));
+      input.addEventListener("change", () => calculate(false));
+    }
+
+    calculate(true);
+  </script>
+</body>
+</html>
