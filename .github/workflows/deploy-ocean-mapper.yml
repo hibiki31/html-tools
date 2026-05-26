@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'ocean-mapper/**'
+      - '.github/workflows/deploy-ocean-mapper.yml'
 
 permissions:
   contents: read
@@ -33,6 +34,10 @@ jobs:
           cache: 'npm'
           cache-dependency-path: ocean-mapper/package-lock.json
 
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+        id: pages
+
       - name: Install dependencies
         run: npm ci
         working-directory: ocean-mapper
@@ -40,9 +45,8 @@ jobs:
       - name: Build
         run: npm run build
         working-directory: ocean-mapper
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
+        env:
+          VITE_BASE: ${{ steps.pages.outputs.base_path }}/
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

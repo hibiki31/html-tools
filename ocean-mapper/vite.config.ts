@@ -7,7 +7,7 @@ export default defineConfig({
     vue(),
     viteSingleFile(),
   ],
-  base: './',
+  base: process.env.VITE_BASE ?? './',
   build: {
     target: 'es2020',
     cssCodeSplit: false,
