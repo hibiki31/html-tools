@@ -459,26 +459,35 @@
             <input id="pointName" type="text" maxlength="80" value="Point-001" placeholder="例：岩礁A / 調査点01 / Anchor" />
           </label>
 
-          <div class="input-row">
-            <label>
-              色
-              <input id="pointColor" type="color" value="#43c6ff" />
-            </label>
-
-            <label>
-              アイコン
-              <select id="pointIcon">
-                <option value="📍" selected>📍 ピン</option>
-                <option value="⚓">⚓ アンカー</option>
-                <option value="★">★ 星</option>
-                <option value="●">● 丸</option>
-                <option value="◆">◆ ひし形</option>
-                <option value="▲">▲ 三角</option>
-                <option value="✚">✚ クロス</option>
-                <option value="🌊">🌊 波</option>
-              </select>
-            </label>
-          </div>
+          <label>
+            アイコン
+            <select id="pointIcon">
+              <option value="📍" selected>📍 ピン</option>
+              <option value="⚓">⚓ アンカー</option>
+              <option value="🌊">🌊 波</option>
+              <option value="🐟">🐟 魚</option>
+              <option value="🦈">🦈 サメ</option>
+              <option value="🐙">🐙 タコ</option>
+              <option value="🦑">🦑 イカ</option>
+              <option value="🐚">🐚 貝殻</option>
+              <option value="🐳">🐳 クジラ</option>
+              <option value="🦭">🦭 アザラシ</option>
+              <option value="🪸">🪸 サンゴ</option>
+              <option value="🪝">🪝 釣り針</option>
+              <option value="⛵">⛵ ヨット</option>
+              <option value="🚢">🚢 船</option>
+              <option value="🧭">🧭 コンパス</option>
+              <option value="🗺️">🗺️ 地図</option>
+              <option value="💎">💎 宝石</option>
+              <option value="💀">💀 どくろ</option>
+              <option value="🏴‍☠️">🏴‍☠️ 海賊旗</option>
+              <option value="🔱">🔱 トライデント</option>
+              <option value="⭐">⭐ 星</option>
+              <option value="❗">❗ 警告</option>
+              <option value="💣">💣 機雷</option>
+              <option value="🔭">🔭 望遠鏡</option>
+            </select>
+          </label>
 
           <p class="section-title">測定値</p>
 
@@ -649,7 +658,6 @@
 
     const inputs = {
       pointName: $("pointName"),
-      pointColor: $("pointColor"),
       pointIcon: $("pointIcon"),
       distance: $("distance"),
       depth: $("depth"),
@@ -657,6 +665,12 @@
       bearingMode: $("bearingMode"),
       distanceType: $("distanceType"),
     };
+
+    // ポイント自動カラーパレット
+    const COLOR_PALETTE = [
+      "#43c6ff", "#69f0ae", "#ffd166", "#ff6b9d", "#c77dff",
+      "#ff9f1c", "#06d6a0", "#ef476f", "#118ab2", "#ffd700",
+    ];
 
     const output = {
       summary: $("summary"),
@@ -851,7 +865,7 @@
       return {
         id: makePointId(),
         name: inputs.pointName.value.trim() || `Point-${String(history.length + 1).padStart(3, "0")}`,
-        color: inputs.pointColor.value || "#43c6ff",
+        color: COLOR_PALETTE[history.length % COLOR_PALETTE.length],
         icon: inputs.pointIcon.value || "📍",
       };
     }
@@ -1057,9 +1071,8 @@
         const safeColor = /^#[0-9a-f]{6}$/i.test(p.color) ? p.color : "#43c6ff";
         return `
           <g opacity="${opacity}">
-            <circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="10" fill="${safeColor}" fill-opacity="0.30" stroke="${safeColor}" stroke-width="1.5" stroke-dasharray="${strokeDash}" />
-            <text x="${x.toFixed(2)}" y="${(y + 4).toFixed(2)}" text-anchor="middle" dominant-baseline="middle" font-size="12">${escapeHtml(p.icon)}</text>
-            <text x="${(x + 14).toFixed(2)}" y="${(y + 4).toFixed(2)}" fill="#eef7ff" font-size="10" font-weight="700" dominant-baseline="middle">${escapeHtml(p.name)}${p.preview ? " [preview]" : ""}</text>
+            <text x="${x.toFixed(2)}" y="${(y + 4).toFixed(2)}" text-anchor="middle" dominant-baseline="middle" font-size="14">${escapeHtml(p.icon)}</text>
+            <text x="${(x + 12).toFixed(2)}" y="${(y + 4).toFixed(2)}" fill="#eef7ff" font-size="10" font-weight="700" dominant-baseline="middle">${escapeHtml(p.name)}${p.preview ? " [preview]" : ""}</text>
           </g>
         `;
       }).join("");
@@ -1134,7 +1147,6 @@
 
     function resetForm() {
       inputs.pointName.value = nextPointName();
-      inputs.pointColor.value = "#43c6ff";
       inputs.pointIcon.value = "📍";
       inputs.distance.value = "";
       inputs.depth.value = "";
@@ -1327,7 +1339,6 @@
     for (const element of document.querySelectorAll(".preset")) {
       element.addEventListener("click", () => {
         inputs.pointName.value = element.dataset.name;
-        inputs.pointColor.value = element.dataset.color;
         inputs.pointIcon.value = element.dataset.icon;
         inputs.distance.value = element.dataset.distance;
         inputs.depth.value = element.dataset.depth;
