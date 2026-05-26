@@ -42,7 +42,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import type { MapPoint } from './types/point'
 import { COLOR_PALETTE } from './types/point'
 import { makePointId } from './utils/coordinate'
@@ -50,8 +50,11 @@ import PointForm from './components/PointForm.vue'
 import PointTable from './components/PointTable.vue'
 import MapCanvas from './components/MapCanvas.vue'
 import { downloadCsv, parsePointsCsv } from './utils/csv'
+import { savePoints, loadPoints } from './utils/storage'
 
-const points = ref<MapPoint[]>([])
+const points = ref<MapPoint[]>(loadPoints())
+
+watch(points, (newPoints) => savePoints(newPoints), { deep: true })
 const previewPoint = ref<MapPoint | null>(null)
 const toastMessage = ref('')
 const toastVisible = ref(false)
