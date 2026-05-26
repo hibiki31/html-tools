@@ -807,8 +807,7 @@
         `x = 水平距離 × sin(${formatNumber(bearingFromBase)}°) = ${formatNumber(x)} m`,
         `y = 水平距離 × cos(${formatNumber(bearingFromBase)}°) = ${formatNumber(y)} m`,
         `z = -深度 = ${formatNumber(z)} m`,
-      ].join("
-");
+      ].join("\n");
 
       updateCompass(bearingFromBase);
       lastResult = result;
@@ -826,8 +825,7 @@
         `y: ${formatNumber(y)} m`,
         `z: ${formatNumber(z)} m`,
         directionText(x, y, z),
-      ].join("
-");
+      ].join("\n");
 
       if (updatePreview) renderMap(result);
       return result;
@@ -931,8 +929,7 @@
 
       svg.innerHTML = `
         <rect x="0" y="0" width="${width}" height="${height}" fill="transparent" />
-        ${grid.join("
-")}
+        ${grid.join("\n")}
         <line x1="${originX}" y1="${margin - 12}" x2="${originX}" y2="${height - margin + 12}" stroke="rgba(105,240,174,0.5)" stroke-width="2" />
         <line x1="${margin - 12}" y1="${originY}" x2="${width - margin + 12}" y2="${originY}" stroke="rgba(67,198,255,0.5)" stroke-width="2" />
         <text x="${originX}" y="${margin - 28}" fill="#b8ffcf" text-anchor="middle" font-size="16" font-weight="800">北 / y+</text>
@@ -1028,9 +1025,7 @@
 
     function csvEscape(value) {
       const text = String(value ?? "");
-      if (/[",
-
-]/.test(text)) return `"${text.replace(/"/g, '""')}"`;
+      if (/[",\n\r]/.test(text)) return `"${text.replace(/"/g, '""')}"`;
       return text;
     }
 
@@ -1069,9 +1064,8 @@
         csvNumber(p.z),
       ]);
 
-      const csv = [headers, ...rows].map((row) => row.map(csvEscape).join(",")).join("
-");
-      const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
+      const csv = [headers, ...rows].map((row) => row.map(csvEscape).join(",")).join("\n");
+      const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
@@ -1104,12 +1098,8 @@
         } else if (char === "," && !inQuotes) {
           row.push(cell);
           cell = "";
-        } else if ((char === "
-" || char === "
-") && !inQuotes) {
-          if (char === "
-" && next === "
-") i++;
+        } else if ((char === "\r" || char === "\n") && !inQuotes) {
+          if (char === "\r" && next === "\n") i++;
           row.push(cell);
           if (row.some((value) => value !== "")) rows.push(row);
           row = [];
@@ -1128,7 +1118,7 @@
       const reader = new FileReader();
       reader.onload = () => {
         try {
-          const text = String(reader.result || "").replace(/^﻿/, "");
+          const text = String(reader.result || "").replace(/^\uFEFF/, "");
           const rows = parseCsv(text);
           if (rows.length < 2) throw new Error("CSVにデータ行がありません。");
 
