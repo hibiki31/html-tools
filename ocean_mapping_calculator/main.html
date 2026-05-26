@@ -1054,12 +1054,12 @@
         const y = sy(p.y);
         const opacity = p.preview ? 0.62 : 1;
         const strokeDash = p.preview ? "5 4" : "none";
-        const label = `${escapeHtml(p.icon)} ${escapeHtml(p.name)}`;
         const safeColor = /^#[0-9a-f]{6}$/i.test(p.color) ? p.color : "#43c6ff";
         return `
           <g opacity="${opacity}">
-            <circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="7" fill="${safeColor}" fill-opacity="0.28" stroke="${safeColor}" stroke-width="1.5" stroke-dasharray="${strokeDash}" />
-            <text x="${(x + 11).toFixed(2)}" y="${(y + 4).toFixed(2)}" fill="#eef7ff" font-size="10" font-weight="700">${label}${p.preview ? " [preview]" : ""}</text>
+            <circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="10" fill="${safeColor}" fill-opacity="0.30" stroke="${safeColor}" stroke-width="1.5" stroke-dasharray="${strokeDash}" />
+            <text x="${x.toFixed(2)}" y="${(y + 4).toFixed(2)}" text-anchor="middle" dominant-baseline="middle" font-size="12">${escapeHtml(p.icon)}</text>
+            <text x="${(x + 14).toFixed(2)}" y="${(y + 4).toFixed(2)}" fill="#eef7ff" font-size="10" font-weight="700" dominant-baseline="middle">${escapeHtml(p.name)}${p.preview ? " [preview]" : ""}</text>
           </g>
         `;
       }).join("");
