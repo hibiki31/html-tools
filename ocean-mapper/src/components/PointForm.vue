@@ -51,17 +51,7 @@
           </label>
         </div>
 
-        <label>
-          方角 [°]
-          <input
-            v-model.number="form.bearing"
-            type="number"
-            inputmode="decimal"
-            min="0"
-            max="360"
-            step="0.01"
-          />
-        </label>
+        <CompassInput v-model="form.bearing" />
 
         <label>
           方角の意味
@@ -164,6 +154,7 @@
 import { reactive, computed, watch, ref } from 'vue'
 import type { MapPoint } from '../types/point'
 import { COLOR_PALETTE, ICON_OPTIONS } from '../types/point'
+import CompassInput from './CompassInput.vue'
 import {
   calculateCoordinate,
   formatNumber,
