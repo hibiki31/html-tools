@@ -9,6 +9,24 @@
           <button class="danger" @click="$emit('clear-history')">履歴を全削除</button>
         </div>
       </div>
+
+      <!-- Icon filter bar -->
+      <div v-if="presentIcons.length > 0" class="filter-bar">
+        <span class="filter-label">🔍 フィルタ：</span>
+        <div class="filter-icons">
+          <button
+            v-for="icon in presentIcons"
+            :key="icon"
+            :class="['filter-icon-btn', { active: activeIcons.has(icon) }]"
+            :title="icon"
+            @click="toggleIcon(icon)"
+          >{{ icon }}</button>
+        </div>
+        <div class="filter-actions">
+          <button class="secondary filter-action-btn" @click="selectAll">全選択</button>
+          <button class="secondary filter-action-btn" @click="clearAll">全解除</button>
+        </div>
+      </div>
       <div class="map-wrap">
         <svg
           ref="svgEl"
@@ -90,7 +108,7 @@
           </template>
 
           <!-- History points -->
-          <g v-for="p in points" :key="p.id">
+          <g v-for="p in filteredPoints" :key="p.id">
             <text
               :x="sx(p.x)" :y="sy(p.y) + 3 * z"
               text-anchor="middle" dominant-baseline="middle" :font-size="10 * z"
@@ -426,7 +444,7 @@ function resetMeasure(): void {
 }
 
 const selectablePoints = computed(() => {
-  return [ORIGIN_POINT, ...props.points]
+  return [ORIGIN_POINT, ...filteredPoints.value]
 })
 
 const resolvedA = computed(() => selectablePoints.value.find(p => p.id === measureA.value) ?? null)
@@ -437,6 +455,46 @@ const distanceResult = computed(() => {
   if (resolvedA.value.id === resolvedB.value.id) return null
   return calculatePointDistance(resolvedA.value, resolvedB.value)
 })
+
+// ── Icon filter ──
+const activeIcons = ref<Set<string>>(new Set())
+
+const presentIcons = computed(() => {
+  const icons = new Set<string>()
+  for (const p of props.points) icons.add(p.icon)
+  return [...icons]
+})
+
+// Sync new icons into activeIcons (default ON)
+watch(presentIcons, (newIcons) => {
+  for (const icon of newIcons) {
+    if (!activeIcons.value.has(icon)) {
+      activeIcons.value.add(icon)
+    }
+  }
+}, { immediate: true })
+
+const filteredPoints = computed(() =>
+  props.points.filter(p => activeIcons.value.has(p.icon))
+)
+
+function toggleIcon(icon: string): void {
+  const next = new Set(activeIcons.value)
+  if (next.has(icon)) {
+    next.delete(icon)
+  } else {
+    next.add(icon)
+  }
+  activeIcons.value = next
+}
+
+function selectAll(): void {
+  activeIcons.value = new Set(presentIcons.value)
+}
+
+function clearAll(): void {
+  activeIcons.value = new Set()
+}
 
 // Auto-clear selection when points change
 watch(() => props.points, () => {
@@ -556,9 +614,88 @@ svg.panning {
   font-size: 0.9rem;
 }
 
+/* ── Icon filter bar ── */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+  padding: 10px 14px;
+  background: rgba(4, 17, 29, 0.48);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.filter-label {
+  color: var(--muted);
+  font-size: 0.88rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.filter-icons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 1;
+}
+
+.filter-icon-btn {
+  font-size: 1.25rem;
+  width: 2.2rem;
+  height: 2.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+  transition: opacity 0.15s, background 0.15s, border-color 0.15s;
+  opacity: 0.3;
+  padding: 0;
+}
+
+.filter-icon-btn.active {
+  opacity: 1;
+  background: rgba(67, 198, 255, 0.15);
+  border-color: rgba(67, 198, 255, 0.5);
+}
+
+.filter-icon-btn:hover {
+  opacity: 0.75;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.filter-icon-btn.active:hover {
+  opacity: 0.85;
+}
+
+.filter-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.filter-action-btn {
+  font-size: 0.8rem;
+  padding: 4px 10px;
+  height: auto;
+  border-radius: 8px;
+}
+
 @media (max-width: 720px) {
   svg {
     min-height: 420px;
+  }
+
+  .filter-bar {
+    gap: 8px;
+  }
+
+  .filter-label {
+    width: 100%;
   }
 
   .measure-selectors {
